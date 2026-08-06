@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --color-agri-earth: #9a3412;        /* Terracotta Rust */
+  --color-agri-earth-hover: #7c2d12;  /* Darker Terracotta */
+  --color-agri-forest: #1c2a26;       /* Deep Barn Slate */
+  --color-agri-emerald: #15803d;      /* Pasture Emerald */
+  --color-agri-amber: #b45309;        /* Harvest Gold */
+  --color-agri-bg: #f3f5f3;           /* Clean Biosecurity Slate */
+  --color-agri-card: #ffffff;         /* Pure Card Surface */
+  --color-agri-border: #e1e6e2;       /* Subtle Field Border */
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-agri-bg);
+  color: var(--color-agri-forest);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
