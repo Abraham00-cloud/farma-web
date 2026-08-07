@@ -15,9 +15,17 @@ import type {
 
 interface AnalyticsCommandHubViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
-export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = ({ organisationId }) => {
+export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = ({ 
+    organisationId, 
+    userRole = 'PROPRIETOR', 
+    currentUserId 
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farms, setFarms] = useState<FarmResponseDto[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<number | ''>('');
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
@@ -42,14 +50,20 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
         verifiedWaterPressure: undefined,
     });
 
-    // 1. Initial Load: Fetch Farms
+    // 1. Initial Load: Fetch Farms with Role Scoping
     useEffect(() => {
         let isMounted = true;
 
         const init = async () => {
             setLoading(true);
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
+
                 if (isMounted && Array.isArray(farmList) && farmList.length > 0) {
                     setFarms(farmList);
                     setSelectedFarmId(farmList[0].id);
@@ -70,7 +84,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     // 2. Fetch Batches when Selected Farm updates
     useEffect(() => {
@@ -224,7 +238,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Agronomic Intelligence & Early-Warning Command
+                        {isProprietor ? 'Agronomic Intelligence & Early-Warning Command' : 'Site Biosecurity & Climate Radar'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                         Real-time THI microclimate stress gauges, WFR hydration tracking, and Cobb-500 / ISA-Brown performance benchmarks.
@@ -254,7 +268,8 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
                     <select
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(Number(e.target.value))}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#C2410C]"
+                        disabled={!isProprietor && farms.length <= 1}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#C2410C] disabled:opacity-50"
                     >
                         {farms.map((f) => (
                             <option key={f.id} value={f.id}>

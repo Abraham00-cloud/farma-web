@@ -10,12 +10,18 @@ import type { UserResponseDto } from '../../types/auth';
 interface FarmManagementViewProps {
     organisationId: number;
     proprietorId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
 export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
     organisationId,
     proprietorId,
+    userRole = 'PROPRIETOR',
+    currentUserId,
 }) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farms, setFarms] = useState<FarmResponseDto[]>([]);
     const [selectedFarm, setSelectedFarm] = useState<FarmResponseDto | null>(null);
     const [managers, setManagers] = useState<UserResponseDto[]>([]);
@@ -41,11 +47,24 @@ export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
             try {
                 const [farmData, managerData] = await Promise.all([
                     infrastructureService.getFarmsByOrganisation(organisationId).catch(() => []),
-                    userService.getManagersByProprietor(proprietorId).catch(() => []),
+                    isProprietor 
+                        ? userService.getManagersByProprietor(proprietorId).catch(() => []) 
+                        : Promise.resolve([]),
                 ]);
 
                 if (isMounted) {
-                    setFarms(farmData);
+                    // 🔒 ROLE SCOPING LOGIC:
+                    // If PROPRIETOR -> Show all farms in organisation
+                    // If MANAGER -> Filter only farms where farm.managerId matches the logged-in manager ID
+                    if (isProprietor) {
+                        setFarms(farmData);
+                    } else if (currentUserId) {
+                        const scopedFarms = farmData.filter(farm => farm.managerId === currentUserId);
+                        setFarms(scopedFarms);
+                    } else {
+                        setFarms(farmData);
+                    }
+
                     setManagers(managerData);
                     if (managerData.length > 0) {
                         setFormData((prev) => ({ ...prev, managerId: managerData[0].id }));
@@ -61,7 +80,7 @@ export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
         return () => {
             isMounted = false;
         };
-    }, [organisationId, proprietorId]);
+    }, [organisationId, proprietorId, isProprietor, currentUserId]);
 
     if (selectedFarm) {
         return (
@@ -120,7 +139,11 @@ export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
             });
 
             const updatedFarms = await infrastructureService.getFarmsByOrganisation(organisationId);
-            setFarms(updatedFarms);
+            if (isProprietor) {
+                setFarms(updatedFarms);
+            } else if (currentUserId) {
+                setFarms(updatedFarms.filter(f => f.managerId === currentUserId));
+            }
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
                 setErrorMessage(
@@ -140,19 +163,25 @@ export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Farm Facilities
+                        {isProprietor ? 'Farm Facilities' : 'My Assigned Farm Facility'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        Click on any farm facility to open its operational workspace and manage pens/flocks.
+                        {isProprietor
+                            ? 'Click on any farm facility to open its operational workspace and manage pens/flocks.'
+                            : 'Access physical pen capacity, active flock batches, and telemetry for your assigned site.'}
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => setShowModal(true)}
-                    className="px-4 py-2.5 rounded-xl bg-[#C2410C] hover:bg-[#9A3412] text-white font-bold text-xs uppercase tracking-wider shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                    <span>+ Add New Farm</span>
-                </button>
+
+                {/* 🔒 "+ Add New Farm" Button is rendered ONLY for Proprietors */}
+                {isProprietor && (
+                    <button
+                        type="button"
+                        onClick={() => setShowModal(true)}
+                        className="px-4 py-2.5 rounded-xl bg-[#C2410C] hover:bg-[#9A3412] text-white font-bold text-xs uppercase tracking-wider shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer"
+                    >
+                        <span>+ Add New Farm</span>
+                    </button>
+                )}
             </div>
 
             {/* Farms Data Grid */}
@@ -219,13 +248,15 @@ export const FarmManagementView: React.FC<FarmManagementViewProps> = ({
                     })
                 ) : (
                     <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-10 text-center font-mono text-xs text-slate-400">
-                        No farm facilities registered yet. Click <span className="text-slate-800 font-bold">"+ Add New Farm"</span> to create your first site.
+                        {isProprietor
+                            ? 'No farm facilities registered yet. Click "+ Add New Farm" to create your first site.'
+                            : 'No farm facility currently assigned to your manager account.'}
                     </div>
                 )}
             </div>
 
-            {/* Add Farm Modal */}
-            {showModal && (
+            {/* Add Farm Modal (Proprietor Only) */}
+            {showModal && isProprietor && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
                     <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">

@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+// 🌐 Switched from localhost to your deployed AWS backend IP/URL
+const API_BASE_URL = 'http://35.170.12.30:8080/api/v1';
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL,

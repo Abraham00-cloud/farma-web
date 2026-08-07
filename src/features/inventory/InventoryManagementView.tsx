@@ -7,9 +7,17 @@ import type { InventoryRequestDto, InventoryResponseDto, InventoryCategory } fro
 
 interface InventoryManagementViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
-export const InventoryManagementView: React.FC<InventoryManagementViewProps> = ({ organisationId }) => {
+export const InventoryManagementView: React.FC<InventoryManagementViewProps> = ({ 
+    organisationId, 
+    userRole = 'PROPRIETOR', 
+    currentUserId 
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farms, setFarms] = useState<FarmResponseDto[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<number | ''>('');
     const [inventories, setInventories] = useState<InventoryResponseDto[]>([]);
@@ -45,13 +53,19 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         expiryDate: getDefaultExpiryDate(),
     }));
 
-    // 1. Initial Load: Fetch Farms
+    // 1. Initial Load: Fetch Farms with Role Scoping
     useEffect(() => {
         let isMounted = true;
 
         const init = async () => {
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
+
                 if (isMounted && farmList.length > 0) {
                     setFarms(farmList);
                     setSelectedFarmId(farmList[0].id);
@@ -71,7 +85,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     // 2. Fetch inventory whenever selectedFarmId changes
     useEffect(() => {
@@ -207,7 +221,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Warehouse Supply & Material Ledger
+                        {isProprietor ? 'Warehouse Supply & Material Ledger' : 'Site Warehouse & Consumables'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                         Segmented stock management for feeds, vaccines, medication, and operational tools per farm site.
@@ -246,6 +260,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                     <select
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(Number(e.target.value))}
+                        disabled={!isProprietor && farms.length <= 1}
                         className="w-full mt-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#C2410C]"
                     >
                         {farms.map((f) => (
@@ -528,7 +543,8 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                     <select
                                         value={itemForm.farmId}
                                         onChange={(e) => setItemForm({ ...itemForm, farmId: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                        disabled={!isProprietor}
+                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50"
                                     >
                                         {farms.map((f) => (
                                             <option key={f.id} value={f.id}>

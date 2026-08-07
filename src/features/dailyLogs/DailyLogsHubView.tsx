@@ -9,6 +9,8 @@ import type { DailyLogRequestDto, DailyLogResponseDto } from '../../types/dailyL
 
 interface DailyLogsHubViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
 interface FarmActiveBatches {
@@ -16,7 +18,13 @@ interface FarmActiveBatches {
     batches: BatchResponseDto[];
 }
 
-export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ organisationId }) => {
+export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ 
+    organisationId, 
+    userRole = 'PROPRIETOR', 
+    currentUserId 
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farmBatchMap, setFarmBatchMap] = useState<FarmActiveBatches[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<number | ''>('');
     const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
@@ -40,13 +48,18 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ organisation
         observations: '',
     });
 
-    // 1. Initial Load: Fetch Farms & Active Batches
+    // 1. Initial Load: Fetch Farms & Active Batches with Role Scoping
     useEffect(() => {
         let isMounted = true;
 
         const init = async () => {
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
 
                 const farmDataPromises = farmList.map(async (farm) => {
                     try {
@@ -90,7 +103,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ organisation
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     // 2. Pure Async Data-Fetching Effect for Selected Batch Logs
     useEffect(() => {
@@ -223,10 +236,12 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ organisation
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                     <div>
                         <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
-                            Daily Telemetry Workspace
+                            {isProprietor ? 'Daily Telemetry Workspace' : 'Site Shift Telemetry Log'}
                         </h3>
                         <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            Select a farm and active cohort to log daily activity or inspect historical telemetry.
+                            {isProprietor 
+                                ? 'Select a farm and active cohort to log daily activity or inspect historical telemetry.'
+                                : 'Record shift feed distribution, medication administration, and pen mortality.'}
                         </p>
                     </div>
                 </div>
@@ -506,7 +521,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({ organisation
                 </>
             ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    Please select an active batch from the top dropdown to start logging telemetry.
+                    {isProprietor ? 'Please select an active batch from the top dropdown to start logging telemetry.' : 'No assigned farm or active cohort found for your manager account.'}
                 </div>
             )}
         </div>

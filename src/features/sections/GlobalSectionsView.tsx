@@ -9,6 +9,8 @@ import { Breed, type BatchRequestDto, type BatchResponseDto } from '../../types/
 
 interface GlobalSectionsViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
 interface FarmGroup {
@@ -24,7 +26,13 @@ const getDefaultBatchDates = () => {
     return { startDate, expectedEndDate };
 };
 
-export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisationId }) => {
+export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ 
+    organisationId, 
+    userRole = 'PROPRIETOR', 
+    currentUserId 
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farmGroups, setFarmGroups] = useState<FarmGroup[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -56,7 +64,12 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
 
     const loadGlobalData = async () => {
         try {
-            const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+            let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+            
+            // 🔒 ROLE SCOPING: If it's a Manager, only allow them to see their assigned farm(s)
+            if (!isProprietor && currentUserId) {
+                farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+            }
 
             const groups = await Promise.all(
                 farmList.map(async (farm) => {
@@ -82,7 +95,12 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
 
         const init = async () => {
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                
+                // 🔒 ROLE SCOPING LOGIC
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
 
                 const groups = await Promise.all(
                     farmList.map(async (farm) => {
@@ -112,7 +130,7 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     const handleOpenStockModal = (sec: SectionResponseDto) => {
         setSectionToStock(sec);
@@ -316,7 +334,7 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Enterprise Containment Fleet
+                        {isProprietor ? 'Enterprise Containment Fleet' : 'My Site Containment Pens'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                         Sections classified physically by parent farm facility and animal specialization.
@@ -348,7 +366,7 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
                         Monitored Facilities
                     </span>
                     <div className="text-2xl font-extrabold text-slate-900 mt-1">
-                        {farmGroups.length} Farm Sites
+                        {farmGroups.length} {farmGroups.length === 1 ? 'Farm Site' : 'Farm Sites'}
                     </div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
@@ -372,7 +390,7 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
             {/* Farm-Classified Sections */}
             {loading ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    Loading enterprise containment fleet...
+                    {isProprietor ? 'Loading enterprise containment fleet...' : 'Loading site containment pens...'}
                 </div>
             ) : farmGroups.length > 0 ? (
                 farmGroups.map(({ farm, sections }) => {
@@ -460,7 +478,7 @@ export const GlobalSectionsView: React.FC<GlobalSectionsViewProps> = ({ organisa
                 })
             ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    No farm facilities or containment sections registered.
+                    {isProprietor ? 'No farm facilities or containment sections registered.' : 'No containment sections found for your assigned farm.'}
                 </div>
             )}
         </div>

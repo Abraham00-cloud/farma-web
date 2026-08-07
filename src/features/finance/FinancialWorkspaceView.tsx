@@ -16,9 +16,17 @@ import type {
 
 interface FinancialWorkspaceViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
-export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ organisationId }) => {
+export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ 
+    organisationId, 
+    userRole = 'PROPRIETOR', 
+    currentUserId 
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farms, setFarms] = useState<FarmResponseDto[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<number | ''>('');
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
@@ -54,14 +62,20 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ 
         batchId: 0,
     }));
 
-    // 1. Load Farm Facilities
+    // 1. Load Farm Facilities with Role Scoping
     useEffect(() => {
         let isMounted = true;
 
         const init = async () => {
             setLoading(true);
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
+
                 if (isMounted && Array.isArray(farmList) && farmList.length > 0) {
                     setFarms(farmList);
                     setSelectedFarmId(farmList[0].id);
@@ -82,7 +96,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ 
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     // 2. Fetch Batches when selected farm updates
     useEffect(() => {
@@ -278,7 +292,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Financial Intelligence & P&L Center
+                        {isProprietor ? 'Financial Intelligence & P&L Center' : 'Site Financial & Unit Economics'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                         Real-time unit economics, expense distribution charts, and cohort margins.
@@ -343,7 +357,8 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({ 
                                 setSelectedFarmId(Number(e.target.value));
                                 setSelectedBatchId('ALL');
                             }}
-                            className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none"
+                            disabled={!isProprietor && farms.length <= 1}
+                            className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none disabled:opacity-50"
                         >
                             {farms.map((f) => (
                                 <option key={f.id} value={f.id}>

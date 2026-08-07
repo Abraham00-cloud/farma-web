@@ -12,6 +12,8 @@ import {
 
 interface BatchManagementViewProps {
     organisationId: number;
+    userRole?: string;
+    currentUserId?: number;
 }
 
 interface FarmBatchGroup {
@@ -19,7 +21,13 @@ interface FarmBatchGroup {
     batches: BatchResponseDto[];
 }
 
-export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organisationId }) => {
+export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ 
+    organisationId,
+    userRole = 'PROPRIETOR',
+    currentUserId,
+}) => {
+    const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+
     const [farmBatchGroups, setFarmBatchGroups] = useState<FarmBatchGroup[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -43,7 +51,12 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
 
     const loadBatches = async () => {
         try {
-            const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+            let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+            // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+            if (!isProprietor && currentUserId) {
+                farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+            }
 
             const groups = await Promise.all(
                 farmList.map(async (farm) => {
@@ -79,7 +92,12 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
 
         const init = async () => {
             try {
-                const farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+                let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
+
+                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
+                if (!isProprietor && currentUserId) {
+                    farmList = farmList.filter((farm) => farm.managerId === currentUserId);
+                }
 
                 const groups = await Promise.all(
                     farmList.map(async (farm) => {
@@ -119,7 +137,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
         return () => {
             isMounted = false;
         };
-    }, [organisationId]);
+    }, [organisationId, isProprietor, currentUserId]);
 
     if (selectedBatchId !== null) {
         return (
@@ -207,7 +225,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
                 <div>
                     <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        Flock & Lifecycle Command Center
+                        {isProprietor ? 'Flock & Lifecycle Command Center' : 'My Site Flock Batches'}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                         Active and historical livestock cohorts physically classified by farm facility and housing pen.
@@ -236,7 +254,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
                     <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                        Active Cohorts Across Enterprise
+                        Active Cohorts
                     </span>
                     <div className="text-2xl font-extrabold text-slate-900 mt-1">
                         {activeBatches.length} Batches
@@ -397,7 +415,7 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({ organi
                 })
             ) : (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    No farm facilities or cohorts found.
+                    {isProprietor ? 'No farm facilities or cohorts found.' : 'No production batches found for your assigned farm.'}
                 </div>
             )}
 

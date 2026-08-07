@@ -147,7 +147,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     {isLogin ? (
                         <form onSubmit={handleLoginSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                                     User Email
                                 </label>
                                 <input
@@ -158,12 +158,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                         setLoginData({ ...loginData, email: e.target.value })
                                     }
                                     placeholder="user@farma-enterprise.com"
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--color-agri-slate)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-agri-emerald)]"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#C2410C] focus:bg-white"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                                     Password
                                 </label>
                                 <input
@@ -174,14 +174,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                         setLoginData({ ...loginData, password: e.target.value })
                                     }
                                     placeholder="••••••••"
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--color-agri-slate)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-agri-emerald)]"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#C2410C] focus:bg-white"
                                 />
                             </div>
 
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full mt-2 py-3 px-4 rounded-xl bg-[var(--color-agri-emerald)] hover:opacity-90 text-white font-bold text-xs uppercase tracking-wider shadow-lg focus:outline-none transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                                className="w-full mt-2 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-lg focus:outline-none transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
                             >
                                 {loading ? (
                                     <span>Authenticating...</span>
@@ -193,13 +193,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     ) : (
                         /* ORGANISATION REGISTRATION FORM */
                         <form onSubmit={handleRegisterSubmit} className="space-y-4">
-                            <div className="bg-[var(--color-agri-slate)] p-3.5 rounded-xl border border-[var(--color-agri-border)] space-y-3">
-                                <span className="text-xs font-bold text-[var(--color-agri-emerald)] uppercase tracking-wider block">
+                            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                                <span className="text-xs font-bold text-[#C2410C] uppercase tracking-wider block">
                                     1. Enterprise Entity Parameters
                                 </span>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">
                                         Organisation Name
                                     </label>
                                     <input
@@ -210,13 +210,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                             setRegData({ ...regData, name: e.target.value })
                                         }
                                         placeholder="e.g. Digicore Agro Allied Ltd"
-                                        className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">
                                             Type
                                         </label>
                                         <select
@@ -227,14 +227,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                                     organisationType: e.target.value as OrganisationType,
                                                 })
                                             }
-                                            className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                         >
                                             <option value={OrganisationType.PRIVATE}>PRIVATE</option>
                                             <option value={OrganisationType.PUBLIC}>PUBLIC</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">
                                             Registration Reg. No
                                         </label>
                                         <input
@@ -248,20 +248,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                                 })
                                             }
                                             placeholder="RC-2026-908"
-                                            className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-[var(--color-agri-slate)] p-3.5 rounded-xl border border-[var(--color-agri-border)] space-y-3">
-                                <span className="text-xs font-bold text-[var(--color-agri-emerald)] uppercase tracking-wider block">
+                            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                                <span className="text-xs font-bold text-[#C2410C] uppercase tracking-wider block">
                                     2. Proprietor Administrator
                                 </span>
 
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">
                                             First Name
                                         </label>
                                         <input
@@ -272,11 +272,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                                 setRegData({ ...regData, adminFirstName: e.target.value })
                                             }
                                             placeholder="Abraham"
-                                            className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">
+                                        <label className="block text-xs font-medium text-slate-700 mb-1">
                                             Last Name
                                         </label>
                                         <input
@@ -287,13 +287,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                                 setRegData({ ...regData, adminLastName: e.target.value })
                                             }
                                             placeholder="Alagbe"
-                                            className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">
                                         Email Address
                                     </label>
                                     <input
@@ -304,12 +304,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                             setRegData({ ...regData, email: e.target.value })
                                         }
                                         placeholder="proprietor@digicore.com"
-                                        className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                                    <label className="block text-xs font-medium text-slate-700 mb-1">
                                         Password (Min 8 Chars)
                                     </label>
                                     <input
@@ -321,7 +321,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                                             setRegData({ ...regData, password: e.target.value })
                                         }
                                         placeholder="••••••••"
-                                        className="w-full px-3 py-2 rounded-lg bg-[var(--color-agri-surface)] border border-[var(--color-agri-border)] text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-agri-emerald)]"
+                                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#C2410C]"
                                     />
                                 </div>
                             </div>
@@ -329,7 +329,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 px-4 rounded-xl bg-[var(--color-agri-emerald)] hover:opacity-90 text-white font-bold text-xs uppercase tracking-wider shadow-lg focus:outline-none transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                                className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-lg focus:outline-none transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
                             >
                                 {loading ? (
                                     <span>Provisioning Account...</span>
