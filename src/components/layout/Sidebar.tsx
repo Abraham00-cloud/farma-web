@@ -1,18 +1,17 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
     userRole: string;
-    activeTab: string;
-    setActiveTab: (tab: string) => void;
     onLogout: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
     userRole,
-    activeTab,
-    setActiveTab,
     onLogout,
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
 
     return (
@@ -44,8 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'dashboard'
+                        onClick={() => navigate('/dashboard')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/dashboard'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -65,8 +64,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {isProprietor && (
                         <button
                             type="button"
-                            onClick={() => setActiveTab('managers')}
-                            className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'managers'
+                            onClick={() => navigate('/managers')}
+                            className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/managers'
                                 ? 'bg-[#C2410C] text-white shadow-xs'
                                 : 'text-slate-600 hover:bg-slate-100'
                                 }`}
@@ -78,8 +77,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('farms')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'farms'
+                        onClick={() => navigate('/farms')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/farms'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -90,8 +89,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('sections')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'sections'
+                        onClick={() => navigate('/sections')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/sections'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -102,8 +101,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('batches')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'batches'
+                        onClick={() => navigate('/batches')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/batches'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -121,8 +120,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('daily-logs')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'daily-logs'
+                        onClick={() => navigate('/daily-logs')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/daily-logs'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -133,8 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('inventory')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'inventory'
+                        onClick={() => navigate('/inventory')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/inventory'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -145,8 +144,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('financials')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'financials'
+                        onClick={() => navigate('/financials')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/financials'
                             ? 'bg-[#C2410C] text-white shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100'
                             }`}
@@ -157,8 +156,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     <button
                         type="button"
-                        onClick={() => setActiveTab('analytics')}
-                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${activeTab === 'analytics'
+                        onClick={() => navigate('/analytics')}
+                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${location.pathname === '/analytics'
                                 ? 'bg-[#C2410C] text-white shadow-xs'
                                 : 'text-slate-600 hover:bg-slate-100'
                             }`}
