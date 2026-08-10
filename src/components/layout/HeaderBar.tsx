@@ -7,29 +7,30 @@ interface HeaderBarProps {
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({ authData }) => {
   return (
-    <header className="bg-white border-b border-[#E1E6E2] px-6 py-3.5 flex items-center justify-between font-sans shadow-2xs">
+    <header className="sticky top-0 z-30 bg-[#F5F1E6] border-b border-[#101B14]/10 px-6 py-3.5 flex items-center justify-between font-sans shadow-xs text-[#101B14]">
       <div>
-        <h2 className="text-sm font-bold text-[#1C2A26] flex items-center space-x-2">
-          <span>Active Operator:</span>
-          <span className="text-[#C2410C] font-mono">{authData.email}</span>
+        <h2 className="text-sm font-bold text-[#101B14] flex items-center space-x-2">
+          <span className="text-[#3F6B47] text-xs font-mono uppercase tracking-wider font-extrabold">Operator:</span>
+          <span className="text-[#101B14] font-mono tracking-tight">{authData.email}</span>
         </h2>
-        <span className="text-[11px] text-slate-500 font-mono">
+        <span className="text-[11px] text-[#101B14]/70 font-mono">
           Enterprise Tenant ID: #{authData.organisationId ?? 'System Admin'}
         </span>
       </div>
 
-      {/* Profile Header Badges (Matching SQI school portal structure) */}
+      {/* Profile Header Badges with lighter tone contrast */}
       <div className="flex items-center space-x-3 text-xs">
-        <div className="bg-[#F3F5F3] border border-[#E1E6E2] px-3.5 py-1.5 rounded-xl flex flex-col items-end">
-          <span className="text-[9px] font-mono font-bold uppercase text-slate-500 tracking-wider">
+        <div className="bg-[#ECE6D6] border border-[#101B14]/15 px-3.5 py-1.5 rounded-[3px] flex flex-col items-end shadow-xs">
+          <span className="text-[9px] font-mono font-bold uppercase text-[#3F6B47] tracking-wider">
             Clearance Level
           </span>
-          <span className="font-extrabold text-[#15803D] font-mono">
+          <span className="font-extrabold text-[#101B14] font-mono uppercase">
             {authData.role}
           </span>
         </div>
 
-        <div className="w-10 h-10 rounded-xl bg-[#1C2A26] text-white flex items-center justify-center font-bold text-sm shadow-xs font-mono border border-[#2A3D38]">
+        <div className="w-10 h-10 rounded-[3px] bg-[#101B14] text-[#F2EFE3] flex items-center justify-center font-bold text-sm shadow-md font-mono border border-[#D9A63E]/40 relative">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#D9A63E] absolute top-1 right-1"></span>
           {authData.email.charAt(0).toUpperCase()}
         </div>
       </div>

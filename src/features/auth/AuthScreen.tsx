@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { authService } from '../../services/authService';
 import {
@@ -10,24 +11,22 @@ import {
 
 interface AuthScreenProps {
     onAuthSuccess: (authData: AuthResponseDto) => void;
-    portalType: 'PROPRIETOR' | 'MANAGER'; // <--- We require this prop now
+    portalType: 'PROPRIETOR' | 'MANAGER';
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalType }) => {
+    const navigate = useNavigate();
     const isManager = portalType === 'MANAGER';
     
-    // Force Manager to always be on Login tab, Proprietor can switch
     const [isLogin, setIsLogin] = useState<boolean>(true);
     const [loading, setLoading] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Login Form State
     const [loginData, setLoginData] = useState<LoginRequestDto>({
         email: '',
         password: '',
     });
 
-    // Organisation Registration Form State
     const [regData, setRegData] = useState<OrganisationRequestDto>({
         name: '',
         organisationType: OrganisationType.PRIVATE,
@@ -45,7 +44,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
         try {
             const response = await authService.login(loginData);
-            onAuthSuccess(response); // <-- This clears the eslint error
+            onAuthSuccess(response);
+            
+            const userRole = response.role?.toUpperCase();
+            const targetPath = (userRole === 'MANAGER') ? '/manager/dashboard' : '/proprietor/dashboard';
+            navigate(targetPath, { replace: true });
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
                 setErrorMessage(err.response?.data?.message || 'Authentication failed. Please verify credentials.');
@@ -63,8 +66,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setErrorMessage(null);
 
         try {
-            const response = await authService.registerOrganisation(regData);
-            onAuthSuccess(response); // <-- This clears the eslint error
+            // 1. Register the organisation entity and admin account
+            await authService.registerOrganisation(regData);
+
+            // 2. Automatically authenticate using the newly created credentials 
+            // to obtain a fully populated AuthResponseDto with token, role, and organisationId.
+            const authResponse = await authService.login({
+                email: regData.email,
+                password: regData.password,
+            });
+
+            // 3. Update parent state and route cleanly to the proprietor dashboard namespace
+            onAuthSuccess(authResponse);
+            navigate('/proprietor/dashboard', { replace: true });
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
                 setErrorMessage(err.response?.data?.message || 'Registration failed.');
@@ -87,7 +101,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                 <h2 className="text-3xl font-extrabold text-[#101B14] tracking-tight">
                     FARMA
                 </h2>
-                {/* Dynamically change header text based on portalType */}
                 <p className="mt-1 text-xs font-semibold tracking-wider text-[#3F6B47] uppercase">
                     {isManager ? 'Site Manager Access Portal' : 'Proprietor Executive Control'}
                 </p>
@@ -96,7 +109,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
                 <div className="bg-[#F5F1E6] py-8 px-6 shadow-2xl border border-[#101B14]/10 rounded-2xl sm:px-10">
                     
-                    {/* Hide tabs completely if it's the manager portal */}
                     {!isManager ? (
                         <div className="flex border-b border-[#101B14]/10 mb-6">
                             <button
@@ -129,7 +141,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                         </div>
                     )}
 
-                    {/* LOGIN FORM */}
                     {isLogin ? (
                         <form onSubmit={handleLoginSubmit} className="space-y-4">
                             <div>
@@ -167,7 +178,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                             </button>
                         </form>
                     ) : (
-                        /* ORGANISATION REGISTRATION FORM (Proprietor Only) */
                         <form onSubmit={handleRegisterSubmit} className="space-y-4">
                             <div className="bg-white p-3.5 rounded-xl border border-[#101B14]/10 space-y-3">
                                 <span className="text-xs font-bold text-[#3F6B47] uppercase tracking-wider block">1. Enterprise Entity Parameters</span>

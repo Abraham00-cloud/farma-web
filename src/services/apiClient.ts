@@ -10,10 +10,11 @@ export const apiClient = axios.create({
     },
 });
 
-// Request Interceptor: Attach bearer token to outgoing requests
+// Request Interceptor: Attach bearer token to outgoing requests safely
 apiClient.interceptors.request.use((config) => {
     const token = localStorage.getItem('farma_jwt');
-    if (token) {
+    // Ensure token exists, isn't literal 'null'/'undefined', and is a non-empty string
+    if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
