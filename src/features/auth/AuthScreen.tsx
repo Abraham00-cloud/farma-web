@@ -57,13 +57,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
             const userRole = response.role?.toUpperCase();
             const targetPath = (userRole === 'MANAGER') ? '/manager/dashboard' : '/proprietor/dashboard';
             navigate(targetPath, { replace: true });
-        } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                const status = err.response?.status;
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
                 if (status === 401 || status === 403 || status === 404) {
                     setErrorMessage('Invalid email or password. Please verify your credentials.');
                 } else {
-                    setErrorMessage(err.response?.data?.message || 'Authentication failed. Please try again later.');
+                    setErrorMessage(error.response?.data?.message || 'Authentication failed. Please try again later.');
                 }
             } else {
                 setErrorMessage('A network error occurred. Please check your connection.');
@@ -80,12 +80,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setSuccessMessage(null);
 
         try {
+            // Call your backend password reset endpoint here when ready
+            // await authService.requestPasswordReset(resetEmail);
+
             setSuccessMessage(
                 isManager
                     ? 'If an active manager profile matches this email address, password reset instructions have been sent. You may also contact your enterprise proprietor for manual credential re-provisioning.'
                     : 'If an active account matches this email address, password recovery instructions have been dispatched. Please check your inbox.'
             );
-        } catch (err: unknown) {
+        } catch {
             setErrorMessage('Unable to process request at the moment. Please try again later.');
         } finally {
             setLoading(false);
@@ -107,10 +110,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
             onAuthSuccess(authResponse);
             navigate('/proprietor/dashboard', { replace: true });
-        } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                const status = err.response?.status;
-                const serverMsg = err.response?.data?.message;
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+                const serverMsg = error.response?.data?.message;
 
                 if (status === 409 || (serverMsg && serverMsg.toLowerCase().includes('already'))) {
                     setErrorMessage('An organisation or user account with this email/registration number already exists.');
