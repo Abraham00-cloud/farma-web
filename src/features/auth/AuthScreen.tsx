@@ -80,7 +80,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setSuccessMessage(null);
 
         try {
-            // Placeholder/Action for password reset request using resetEmail state
+            // Call your backend password reset endpoint here when ready
+            // await authService.requestPasswordReset(resetEmail);
+
             setSuccessMessage(
                 isManager
                     ? 'If an active manager profile matches this email address, password reset instructions have been sent. You may also contact your enterprise proprietor for manual credential re-provisioning.'

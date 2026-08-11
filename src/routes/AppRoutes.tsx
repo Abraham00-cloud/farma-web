@@ -21,6 +21,10 @@ interface AppRoutesProps {
 export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) => {
     const isProprietor = authData.role?.toUpperCase() === 'PROPRIETOR' || authData.role?.toUpperCase() === 'ADMIN';
 
+    // Safely fallback nullable IDs to 0
+    const orgId = authData.organisationId ?? 0;
+    const userId = authData.userId ?? 6;
+
     return (
         <Routes>
             {/* Dashboard Route */}
@@ -105,7 +109,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                     path="/managers"
                     element={
                         <div className="max-w-7xl mx-auto">
-                            <ManagerManagementView organisationId={authData.organisationId} proprietorId={authData.userId ?? 6} />
+                            <ManagerManagementView organisationId={orgId} proprietorId={userId} />
                         </div>
                     }
                 />
@@ -115,7 +119,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/farms"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <FarmManagementView organisationId={authData.organisationId} proprietorId={authData.userId ?? 6} userRole={authData.role} currentUserId={authData.userId} />
+                        <FarmManagementView organisationId={orgId} proprietorId={userId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -124,7 +128,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/sections"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <GlobalSectionsView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <GlobalSectionsView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -133,7 +137,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/batches"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <BatchManagementView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <BatchManagementView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -142,7 +146,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/daily-logs"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <DailyLogsHubView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <DailyLogsHubView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -151,7 +155,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/inventory"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <InventoryManagementView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <InventoryManagementView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -160,7 +164,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/financials"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <FinancialWorkspaceView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <FinancialWorkspaceView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
@@ -169,7 +173,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = ({ authData, setActiveTab }) 
                 path="/analytics"
                 element={
                     <div className="max-w-7xl mx-auto">
-                        <AnalyticsCommandHubView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
+                        <AnalyticsCommandHubView organisationId={orgId} userRole={authData.role} currentUserId={authData.userId} />
                     </div>
                 }
             />
