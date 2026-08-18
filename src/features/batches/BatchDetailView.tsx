@@ -39,7 +39,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         birdsSold: 0,
         saleRevenue: 0,
         notes: '',
-        isFinalHarvest: false, // <-- The crucial toggle
+        isFinalHarvest: false, 
     });
 
     const loadData = async () => {
@@ -55,7 +55,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
             setHarvestForm((prev) => ({
                 ...prev,
                 birdsSold: batchData.currentCount,
-                saleRevenue: 0, // Reset to 0 so they don't accidentally submit wrong revenue
+                saleRevenue: 0, 
             }));
         } catch {
             setErrorMessage("Failed to refresh batch data.");
@@ -111,9 +111,11 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
             mortalityCount: Number(logForm.mortalityCount || 0),
             feedQuantityUsed: logForm.feedQuantityUsed ? Number(logForm.feedQuantityUsed) : undefined,
             medicineQuantityUsed: logForm.medicineQuantityUsed ? Number(logForm.medicineQuantityUsed) : undefined,
-            administrationMethod: logForm.administrationMethod?.trim() || undefined,
+            // STRICT TYPING FIX: Use explicit ternary operator instead of optional chaining for strings
+            administrationMethod: logForm.administrationMethod ? logForm.administrationMethod.trim() : undefined,
             averageWeight: logForm.averageWeight ? Number(logForm.averageWeight) : undefined,
-            observations: logForm.observations?.trim() || undefined,
+            // STRICT TYPING FIX: Use explicit ternary operator instead of optional chaining for strings
+            observations: logForm.observations ? logForm.observations.trim() : undefined,
         };
 
         try {
@@ -161,7 +163,8 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                     actualEndDate: harvestForm.saleDate,
                     totalBirdsSold: Number(harvestForm.birdsSold),
                     totalSaleRevenue: Number(harvestForm.saleRevenue),
-                    harvestNotes: harvestForm.notes?.trim(),
+                    // STRICT TYPING FIX: Use explicit ternary
+                    harvestNotes: harvestForm.notes ? harvestForm.notes.trim() : undefined,
                 });
                 setSuccessMessage("Batch officially closed and harvest finalized!");
             } else {
@@ -170,7 +173,8 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                     saleDate: harvestForm.saleDate,
                     birdsSold: Number(harvestForm.birdsSold),
                     saleRevenue: Number(harvestForm.saleRevenue),
-                    notes: harvestForm.notes?.trim(),
+                    // STRICT TYPING FIX: Use explicit ternary
+                    notes: harvestForm.notes ? harvestForm.notes.trim() : undefined,
                 });
                 setSuccessMessage("Partial sale recorded successfully! Batch remains active.");
             }

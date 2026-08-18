@@ -44,8 +44,11 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
 }) => {
     const isProprietor = authData.role?.toUpperCase() === 'PROPRIETOR' || authData.role?.toUpperCase() === 'ADMIN';
     
-    // Safely extract the user identifier (depending on how your DTO is structured)
+    // Safely extract the user identifier
     const currentUserId = (authData as { userId?: number; id?: number }).userId || (authData as { userId?: number; id?: number }).id;
+
+    // Safely extract Organisation ID for strict TypeScript checks
+    const orgId = authData.organisationId || 0;
 
     // Aggregated State
     const [loading, setLoading] = useState(true);
@@ -66,10 +69,15 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
         let isMounted = true;
 
         const bootDashboard = async () => {
+            if (!orgId) {
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             try {
                 // 1. Fetch Farms & Scope by Role
-                let farms = await infrastructureService.getFarmsByOrganisation(authData.organisationId);
+                let farms = await infrastructureService.getFarmsByOrganisation(orgId);
                 if (!isProprietor && currentUserId) {
                     farms = farms.filter(f => f.managerId === currentUserId);
                 }
@@ -106,12 +114,11 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                 let exp = 0;
                 if (isProprietor) {
                     try {
-                        // Cast to unknown first, then to the expected shape to satisfy strict TS rules
-                        const cashFlowResponse = await transactionService.getCompanyCashFlow(authData.organisationId);
+                        const cashFlowResponse = await transactionService.getCompanyCashFlow(orgId);
                         const cashFlow = cashFlowResponse as unknown as { totalIncome?: number; totalRevenue?: number; totalExpenses?: number };
                         
-                        rev = cashFlow?.totalIncome || cashFlow?.totalRevenue || 5000000; // Fallback mock if DTO differs
-                        exp = cashFlow?.totalExpenses || 2400000; // Fallback mock if DTO differs
+                        rev = cashFlow?.totalIncome || cashFlow?.totalRevenue || 5000000; 
+                        exp = cashFlow?.totalExpenses || 2400000; 
                     } catch {
                         rev = 5000000; 
                         exp = 2400000;
@@ -127,11 +134,16 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                 let invValue = 0;
                 let feedQty = 0, medQty = 0, equipQty = 0;
                 
+                // Strictly type arithmetic operations for Vercel
                 allInventory.forEach(inv => {
-                    invValue += (inv.currentQuantity * inv.unitPrice);
-                    if (inv.category === 'FEED') feedQty += inv.currentQuantity;
-                    else if (inv.category === 'MEDICINE' || inv.category === 'VACCINE') medQty += inv.currentQuantity;
-                    else equipQty += inv.currentQuantity;
+                    const qty = Number(inv.currentQuantity || 0);
+                    const price = Number(inv.unitPrice || 0);
+
+                    invValue += (qty * price);
+
+                    if (inv.category === 'FEED') feedQty += qty;
+                    else if (inv.category === 'MEDICINE' || inv.category === 'VACCINE') medQty += qty;
+                    else equipQty += qty;
                 });
 
                 setGlobalStats({
@@ -168,7 +180,7 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
 
         bootDashboard();
         return () => { isMounted = false; };
-    }, [authData, isProprietor, currentUserId]);
+    }, [authData, isProprietor, currentUserId, orgId]);
 
     if (loading) {
         return (
