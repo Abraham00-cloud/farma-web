@@ -69,3 +69,11 @@ export interface BatchCloseResponseDto {
     sectionUnlocked: boolean;
     harvestNotes?: string;
 }
+
+// NEW: Added for Partial Sales
+export interface PartialSaleRequestDto {
+    saleDate: string; // YYYY-MM-DD
+    birdsSold: number;
+    saleRevenue: number;
+    notes?: string;
+}

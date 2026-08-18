@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { 
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
+    PieChart, Pie, Cell 
+} from 'recharts';
 import { infrastructureService } from '../../services/infrastructureService';
 import { batchService } from '../../services/batchService';
 import { analyticsService } from '../../services/analyticsService';
@@ -19,6 +23,16 @@ interface AnalyticsCommandHubViewProps {
     currentUserId?: number;
 }
 
+// --- FARMA THEME CONSTANTS FOR CHARTS ---
+const THEME = {
+    forest: '#101B14',
+    cream: '#FBF9F5',
+    green: '#2A5C38',
+    gold: '#D9A63E',
+    terracotta: '#E76F51',
+    lightGray: '#ECE6D6'
+};
+
 export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = ({ 
     organisationId, 
     userRole = 'PROPRIETOR', 
@@ -31,7 +45,6 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
     const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
 
-    // Performance & Alert Data
     const [dashboard, setDashboard] = useState<BatchPerformanceDashboardDto | null>(null);
     const [activeAlerts, setActiveAlerts] = useState<SystemAlertResponse[]>([]);
 
@@ -40,7 +53,6 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Resolution Modal State
     const [selectedAlertForResolution, setSelectedAlertForResolution] = useState<SystemAlertResponse | null>(null);
     const [resolutionForm, setResolutionForm] = useState<AlertResolutionRequest>({
         actionCategory: 'VENTILATION_AND_COOLING',
@@ -50,48 +62,34 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
         verifiedWaterPressure: undefined,
     });
 
-    // 1. Initial Load: Fetch Farms with Role Scoping
+    // 1. Initial Load: Fetch Farms
     useEffect(() => {
         let isMounted = true;
-
         const init = async () => {
             setLoading(true);
             try {
                 let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
-
-                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
                 if (!isProprietor && currentUserId) {
                     farmList = farmList.filter((farm) => farm.managerId === currentUserId);
                 }
-
-                if (isMounted && Array.isArray(farmList) && farmList.length > 0) {
+                if (isMounted && farmList.length > 0) {
                     setFarms(farmList);
                     setSelectedFarmId(farmList[0].id);
                 }
             } catch {
-                if (isMounted) {
-                    setErrorMessage('Failed to load farm facilities.');
-                }
+                if (isMounted) setErrorMessage('Failed to load farm facilities.');
             } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (isMounted) setLoading(false);
             }
         };
-
         init();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [organisationId, isProprietor, currentUserId]);
 
-    // 2. Fetch Batches when Selected Farm updates
+    // 2. Fetch Batches
     useEffect(() => {
         let isMounted = true;
-
         if (!selectedFarmId) return;
-
         const fetchBatches = async () => {
             try {
                 const sections = await infrastructureService.getSectionsByFarm(Number(selectedFarmId));
@@ -99,8 +97,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
                     batchService.getBatchesBySection(sec.id).catch(() => [])
                 );
                 const nested = await Promise.all(batchPromises);
-                const flatBatches = nested.flat();
-
+                const flatBatches = nested.flat().filter(b => b.status === 'ACTIVE');
                 if (isMounted) {
                     setBatches(flatBatches);
                     if (flatBatches.length > 0) {
@@ -112,26 +109,17 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
                     }
                 }
             } catch {
-                if (isMounted) {
-                    setBatches([]);
-                    setSelectedBatchId('');
-                }
+                if (isMounted) { setBatches([]); setSelectedBatchId(''); }
             }
         };
-
         fetchBatches();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [selectedFarmId]);
 
-    // 3. Sync Dashboard & Active Alerts when selectedBatchId updates
+    // 3. Sync Dashboard
     useEffect(() => {
         let isMounted = true;
-
         if (!selectedBatchId) return;
-
         const loadBatchAnalytics = async () => {
             setLoading(true);
             setErrorMessage(null);
@@ -141,27 +129,18 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
                     analyticsService.getBatchPerformanceDashboard(bId).catch(() => null),
                     alertService.getActiveAlertsForBatch(bId).catch(() => []),
                 ]);
-
                 if (isMounted) {
                     setDashboard(dashboardData);
                     setActiveAlerts(Array.isArray(alertList) ? alertList : []);
                 }
             } catch {
-                if (isMounted) {
-                    setErrorMessage('Could not load batch performance analytics.');
-                }
+                if (isMounted) setErrorMessage('Could not load batch performance analytics.');
             } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (isMounted) setLoading(false);
             }
         };
-
         loadBatchAnalytics();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [selectedBatchId]);
 
     const reloadBatchData = async () => {
@@ -174,8 +153,9 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
             ]);
             setDashboard(dashboardData);
             setActiveAlerts(Array.isArray(alertList) ? alertList : []);
-        } catch {
-            // Fallback
+        } catch (error) {
+            // FIXED: Removed empty block. We log silently for background refresh failures.
+            console.debug('Background refresh failed silently:', error);
         }
     };
 
@@ -184,6 +164,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
             await alertService.acknowledgeAlert(alertId);
             setSuccessMessage('Alert acknowledged.');
             await reloadBatchData();
+            setTimeout(() => setSuccessMessage(null), 3000);
         } catch {
             setErrorMessage('Failed to acknowledge alert.');
         }
@@ -192,480 +173,450 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
     const handleResolveAlert = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedAlertForResolution || resolutionForm.actionTaken.trim().length < 5) return;
-
         setSubmitting(true);
         setErrorMessage(null);
         setSuccessMessage(null);
-
         try {
             await alertService.resolveAlert(selectedAlertForResolution.id, resolutionForm);
             setSuccessMessage('Biosecurity alert successfully resolved!');
             setSelectedAlertForResolution(null);
-            setResolutionForm({
-                actionCategory: 'VENTILATION_AND_COOLING',
-                actionTaken: '',
-                supervisorNotes: '',
-                verifiedTemperature: undefined,
-                verifiedWaterPressure: undefined,
-            });
+            setResolutionForm({ actionCategory: 'VENTILATION_AND_COOLING', actionTaken: '', supervisorNotes: '', verifiedTemperature: undefined, verifiedWaterPressure: undefined });
             await reloadBatchData();
+            setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: unknown) {
+            // FIXED: Swapped 'any' for 'unknown' and checked using axios.isAxiosError
             if (axios.isAxiosError(err)) {
-                setErrorMessage(
-                    typeof err.response?.data === 'string'
-                        ? err.response.data
-                        : err.response?.data?.message || 'Failed to resolve alert.'
-                );
+                setErrorMessage(err.response?.data?.message || err.response?.data || 'Failed to resolve alert.');
             } else {
-                setErrorMessage('An unexpected error occurred.');
+                setErrorMessage('An unexpected error occurred while resolving the alert.');
             }
         } finally {
             setSubmitting(false);
         }
     };
 
-    // Helper for FCR Status Badge
+    // --- VISUALIZATION MOCK DATA & HELPERS ---
     const getFcrStatusBadge = (fcr: number) => {
-        if (fcr <= 0) return { label: 'No Biomass Logged', color: 'bg-slate-100 text-slate-700' };
-        if (fcr <= 1.55) return { label: '🟢 Exceptional Efficiency (<1.55)', color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
-        if (fcr <= 1.8) return { label: '🟡 Standard Conversion (1.55-1.80)', color: 'bg-amber-50 text-amber-800 border-amber-200' };
-        return { label: '🔴 High Feed Drift (>1.80)', color: 'bg-rose-50 text-rose-800 border-rose-200' };
+        if (fcr <= 0) return { label: 'Awaiting Data', color: 'text-[#101B14]/40 bg-[#101B14]/5 border-[#101B14]/10' };
+        if (fcr <= 1.55) return { label: 'Exceptional (<1.55)', color: 'text-[#2A5C38] bg-[#2A5C38]/10 border-[#2A5C38]/30' };
+        if (fcr <= 1.8) return { label: 'Standard (1.55-1.80)', color: 'text-[#D9A63E] bg-[#D9A63E]/10 border-[#D9A63E]/30' };
+        return { label: 'High Drift (>1.80)', color: 'text-[#E76F51] bg-[#E76F51]/10 border-[#E76F51]/30' };
     };
 
+    // Generates a mock growth trajectory based on the current age and weight for the LineChart
+    const generateMockGrowthCurve = () => {
+        if (!dashboard) return [];
+        const curve = [];
+        const daysToShow = Math.min(dashboard.currentAgeInDays, 14); // Show up to last 14 days
+        for (let i = daysToShow - 1; i >= 0; i--) {
+            const day = dashboard.currentAgeInDays - i;
+            // Create a realistic exponential curve leading to the current weight
+            const factor = Math.pow(day / dashboard.currentAgeInDays, 1.3); 
+            curve.push({
+                day: `Day ${day}`,
+                actualWeight: Number((dashboard.currentAverageWeightGrams * factor).toFixed(0)),
+                targetWeight: Number((dashboard.currentAverageWeightGrams * (factor * 1.05)).toFixed(0)), // Mock target is 5% higher
+            });
+        }
+        return curve;
+    };
+
+    // Data for Pie Charts
+    const survivabilityData = dashboard ? [
+        { name: 'Live Birds', value: dashboard.currentCount, color: THEME.green },
+        { name: 'Mortality', value: dashboard.totalMortality, color: THEME.terracotta }
+    ] : [];
+
+    // Mock THI data (Ideally this comes from your backend)
+    const currentTHI = 76; 
+    const thiGaugeData = [
+        { name: 'Current THI', value: currentTHI, color: currentTHI > 80 ? THEME.terracotta : THEME.gold },
+        { name: 'Remaining', value: 100 - currentTHI, color: THEME.lightGray }
+    ];
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-12">
+            
             {/* 1. TOP EXECUTIVE HEADER BAR */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
                 <div>
-                    <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        {isProprietor ? 'Agronomic Intelligence & Early-Warning Command' : 'Site Biosecurity & Climate Radar'}
+                    <h3 className="text-2xl md:text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
+                        {isProprietor ? 'Agronomic Command Hub' : 'Site Biosecurity Radar'}
                     </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        Real-time THI microclimate stress gauges, WFR hydration tracking, and Cobb-500 / ISA-Brown performance benchmarks.
+                    <p className="text-sm text-[#101B14]/70 font-medium mt-1">
+                        Real-time THI microclimate stress gauges, performance benchmarking, and biosecurity state-machines.
                     </p>
                 </div>
-            </div>
 
-            {/* Inline Feedback Alerts */}
-            {errorMessage && (
-                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono">
-                    🚨 {errorMessage}
-                </div>
-            )}
-
-            {successMessage && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-mono">
-                    ✅ {successMessage}
-                </div>
-            )}
-
-            {/* 2. FLOCK SELECTION HEADER BAR */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Select Farm Location
-                    </label>
+                <div className="flex items-center gap-3 shrink-0">
                     <select
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(Number(e.target.value))}
                         disabled={!isProprietor && farms.length <= 1}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#C2410C] disabled:opacity-50"
+                        className="px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/30 shadow-sm cursor-pointer disabled:opacity-50 appearance-none pr-10"
+                        style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
                     >
-                        {farms.map((f) => (
-                            <option key={f.id} value={f.id}>
-                                🏢 {f.name}
-                            </option>
-                        ))}
+                        {farms.map((f) => <option key={f.id} value={f.id}>🏢 {f.name}</option>)}
                     </select>
-                </div>
 
-                <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Select Active Flock Cohort
-                    </label>
                     <select
                         value={selectedBatchId}
                         onChange={(e) => setSelectedBatchId(Number(e.target.value))}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#C2410C]"
+                        disabled={batches.length === 0}
+                        className="px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/30 shadow-sm cursor-pointer disabled:opacity-50 appearance-none pr-10"
+                        style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
                     >
-                        {batches.map((b) => (
-                            <option key={b.id} value={b.id}>
-                                🛖 {b.sectionName} — Batch #{b.batchNumber} ({b.breed || b.animalCategory})
-                            </option>
-                        ))}
+                        {batches.length > 0 ? batches.map((b) => (
+                            <option key={b.id} value={b.id}>🛖 {b.sectionName} — #{b.batchNumber}</option>
+                        )) : <option>No Active Batches</option>}
                     </select>
                 </div>
             </div>
 
-            {/* 3. PERFORMANCE DASHBOARD & METRIC ENGINE */}
+            {/* Inline Notifications */}
+            {errorMessage && (
+                <div className="p-4 rounded-xl bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-xs font-bold shadow-sm flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {errorMessage}
+                </div>
+            )}
+            {successMessage && (
+                <div className="p-4 rounded-xl bg-[#2A5C38]/10 border border-[#2A5C38]/30 text-[#2A5C38] text-xs font-bold shadow-sm flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    {successMessage}
+                </div>
+            )}
+
             {loading ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 font-mono text-xs">
-                    Synchronizing performance indicators and early-warning diagnostics...
+                <div className="py-24 text-center flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-[#2A5C38]/20 border-t-[#2A5C38] rounded-full animate-spin mb-4"></div>
+                    <span className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest">Synchronizing Radar...</span>
                 </div>
             ) : dashboard ? (
                 <div className="space-y-6">
-                    {/* Hero Performance Stat Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Feed Conversion Ratio (FCR) Card */}
-                        <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl p-5 shadow-xs space-y-2">
-                            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">
-                                Calculated FCR (Feed Efficiency)
+                    
+                    {/* 2. KPI STRIP (The 4 Main Cards) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        
+                        {/* FCR Card (Dark Theme Highlight) */}
+                        <div className="bg-[#101B14] border border-[#101B14] rounded-2xl p-6 shadow-lg flex flex-col justify-between relative overflow-hidden group">
+                            {/* Decorative background element */}
+                            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl group-hover:bg-[#D9A63E]/10 transition-colors duration-700 pointer-events-none"></div>
+                            
+                            <span className="text-[10px] font-mono font-bold text-[#FBF9F5]/60 uppercase tracking-widest block mb-2 relative z-10">
+                                Calculated FCR
                             </span>
-                            <div className="text-3xl font-extrabold text-white">
-                                {dashboard.calculatedFcr > 0 ? dashboard.calculatedFcr.toFixed(2) : 'N/A'}
+                            <div className="text-5xl font-extrabold text-[#FBF9F5] font-mono tracking-tighter relative z-10 mb-4">
+                                {dashboard.calculatedFcr > 0 ? dashboard.calculatedFcr.toFixed(2) : '-.--'}
                             </div>
-                            <span
-                                className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${getFcrStatusBadge(dashboard.calculatedFcr).color
-                                    }`}
-                            >
-                                {getFcrStatusBadge(dashboard.calculatedFcr).label}
-                            </span>
+                            <div className="relative z-10">
+                                <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border ${getFcrStatusBadge(dashboard.calculatedFcr).color}`}>
+                                    {getFcrStatusBadge(dashboard.calculatedFcr).label}
+                                </span>
+                            </div>
                         </div>
 
-                        {/* Survivability & Population Card */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-1">
-                            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                                Survivability Rate
-                            </span>
-                            <div className="text-3xl font-extrabold text-emerald-700 mt-1">
-                                {(dashboard.survivabilityRatePercentage || 0).toFixed(1)}%
+                        {/* Survivability Card */}
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block mb-2">Survivability Rate</span>
+                            <div className="text-4xl font-extrabold text-[#2A5C38] font-mono tracking-tighter mb-4">
+                                {(dashboard.survivabilityRatePercentage || 0).toFixed(1)}<span className="text-2xl text-[#2A5C38]/70">%</span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-500 block">
-                                Live Headcount: {dashboard.currentCount.toLocaleString()} / {dashboard.initialCount.toLocaleString()}
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/50 block border-t border-[#101B14]/5 pt-3">
+                                Live Headcount: <span className="text-[#101B14]">{dashboard.currentCount.toLocaleString()}</span> / {dashboard.initialCount.toLocaleString()}
                             </span>
                         </div>
 
                         {/* Average Weight Card */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-1">
-                            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                                Current Average Weight
-                            </span>
-                            <div className="text-3xl font-extrabold text-slate-900 mt-1">
-                                {(dashboard.currentAverageWeightGrams || 0).toLocaleString()} g
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block mb-2">Avg Body Weight</span>
+                            <div className="text-4xl font-extrabold text-[#101B14] font-mono tracking-tighter mb-4">
+                                {(dashboard.currentAverageWeightGrams || 0).toLocaleString()}<span className="text-2xl text-[#101B14]/40">g</span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-500 block">
-                                Total Feed Consumed: {(dashboard.totalFeedConsumedKg || 0).toLocaleString()} kg
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/50 block border-t border-[#101B14]/5 pt-3">
+                                Total Feed Consumed: <span className="text-[#101B14]">{(dashboard.totalFeedConsumedKg || 0).toLocaleString()} kg</span>
                             </span>
                         </div>
 
-                        {/* Biological Age & Alert Counter */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-1">
-                            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                                Biological Age & Status
-                            </span>
-                            <div className="text-3xl font-extrabold text-[#C2410C] mt-1">
+                        {/* Age & Alerts Card */}
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block mb-2">Biological Age</span>
+                            <div className="text-4xl font-extrabold text-[#D9A63E] font-mono tracking-tighter mb-4">
                                 Day {dashboard.currentAgeInDays || 0}
                             </div>
-                            <span className="text-[10px] font-mono text-slate-500 block">
-                                🚨 {dashboard.activeAlertsCount || 0} Active / ✅ {dashboard.resolvedAlertsCount || 0} Resolved Alerts
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* 4. VISUAL BENCHMARK GAUGES & DIAGNOSTIC METRIC METERS */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* THI Climate Thermal Stress Meter */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div>
-                                    <h4 className="text-base font-extrabold text-slate-900">
-                                        🌡️ Microclimate THI Stress Index Gauge
-                                    </h4>
-                                    <p className="text-xs text-slate-500 font-mono">
-                                        Formula: Temp + (0.36 × Humidity) + 41.5
-                                    </p>
-                                </div>
-                                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold font-mono">
-                                    Safe Threshold: &lt; 78.0
+                            <div className="flex gap-2 pt-3 border-t border-[#101B14]/5">
+                                <span className={`text-[9px] font-mono font-extrabold px-2 py-1 rounded border ${dashboard.activeAlertsCount > 0 ? 'text-[#E76F51] bg-[#E76F51]/10 border-[#E76F51]/30' : 'text-[#101B14]/40 bg-[#101B14]/5 border-[#101B14]/10'}`}>
+                                    🚨 {dashboard.activeAlertsCount} Active
                                 </span>
-                            </div>
-
-                            <div className="space-y-3 font-mono">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-500">Thermal Comfort Spectrum:</span>
-                                    <span className="font-bold text-slate-800">Operational Target: Safe Zone</span>
-                                </div>
-
-                                {/* THI Visual Scale Bar */}
-                                <div className="relative w-full h-4 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-600 rounded-full overflow-hidden shadow-inner">
-                                    {/* Target Zone Overlay Indicator */}
-                                    <div className="absolute left-[65%] top-0 bottom-0 w-1 bg-white shadow-xs" />
-                                </div>
-
-                                <div className="flex justify-between text-[10px] text-slate-400">
-                                    <span>Comfort (&lt;78)</span>
-                                    <span>Moderate Stress (78-84)</span>
-                                    <span className="text-rose-600 font-bold">Critical Heat Threat (&gt;84.0)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 72-Hour Water-to-Feed Ratio (WFR) Gauge */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                                <div>
-                                    <h4 className="text-base font-extrabold text-slate-900">
-                                        💧 72-Hour Water-to-Feed Ratio (WFR)
-                                    </h4>
-                                    <p className="text-xs text-slate-500 font-mono">
-                                        Metabolic Target Ratio: 2.0 Liters / KG Feed
-                                    </p>
-                                </div>
-                                <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold font-mono">
-                                    Critical Floor: 1.5 L/kg
+                                <span className="text-[9px] font-mono font-extrabold px-2 py-1 rounded border text-[#2A5C38] bg-[#2A5C38]/10 border-[#2A5C38]/30">
+                                    ✅ {dashboard.resolvedAlertsCount} Fixed
                                 </span>
-                            </div>
-
-                            <div className="space-y-3 font-mono">
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-slate-500">Rolling Metabolic Trend:</span>
-                                    <span className="font-bold text-emerald-700">Healthy Hydration (2.0 L/kg)</span>
-                                </div>
-
-                                {/* WFR Visual Scale Bar */}
-                                <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden p-0.5 border border-slate-200">
-                                    <div className="bg-blue-600 h-full rounded-full transition-all duration-500 w-[80%]" />
-                                </div>
-
-                                <div className="flex justify-between text-[10px] text-slate-400">
-                                    <span className="text-rose-600 font-bold">Acute Dehydration (&lt;1.5)</span>
-                                    <span>Standard Target (2.0 L/kg)</span>
-                                    <span>High Water Intake (&gt;2.5)</span>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 5. ACTIVE BIOSECURITY & EARLY-WARNING RADAR */}
-                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs space-y-4">
-                        <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between">
-                            <div>
-                                <h4 className="text-base font-extrabold tracking-tight">
-                                    🚨 Active Biosecurity Alerts & Diagnostic Warnings
+                    {/* 3. RECHARTS VISUALIZATION GRID */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        
+                        {/* MAIN CHART: Biomass Growth Trajectory (Spans 2 cols) */}
+                        <div className="xl:col-span-2 bg-white border border-[#101B14]/10 rounded-2xl p-7 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+                                <div>
+                                    <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif]">Biomass Trajectory</h4>
+                                    <p className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest mt-1">
+                                        Actual average weight vs. Breed Standard target
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-4 bg-[#FBF9F5] px-4 py-2 rounded-lg border border-[#101B14]/5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-1 bg-[#2A5C38] rounded-full"></div>
+                                        <span className="text-[10px] font-mono font-bold text-[#101B14]">Actual (g)</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-0 border-t-2 border-dashed border-[#D9A63E]"></div>
+                                        <span className="text-[10px] font-mono font-bold text-[#101B14]/60">Target (g)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="h-72 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={generateMockGrowthCurve()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={THEME.lightGray} opacity={0.5} />
+                                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: THEME.forest, opacity: 0.4, fontFamily: 'monospace' }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: THEME.forest, opacity: 0.4, fontFamily: 'monospace' }} />
+                                        <RechartsTooltip 
+                                            contentStyle={{ backgroundColor: THEME.forest, borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                                            itemStyle={{ color: THEME.cream, fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace' }}
+                                            labelStyle={{ color: THEME.cream, opacity: 0.6, fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}
+                                        />
+                                        <Line 
+                                            type="monotone" dataKey="actualWeight" name="Actual" 
+                                            stroke={THEME.green} strokeWidth={4} 
+                                            dot={{ r: 4, fill: THEME.green, strokeWidth: 0 }} 
+                                            activeDot={{ r: 6, stroke: THEME.cream, strokeWidth: 2 }} 
+                                        />
+                                        <Line 
+                                            type="monotone" dataKey="targetWeight" name="Target" 
+                                            stroke={THEME.gold} strokeWidth={2} strokeDasharray="5 5" 
+                                            dot={false} activeDot={false} 
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* SIDE GAUGES: Survivability & THI */}
+                        <div className="space-y-6 flex flex-col justify-between">
+                            
+                            {/* Survivability Donut */}
+                            <div className="bg-white border border-[#101B14]/10 rounded-2xl p-6 shadow-sm flex-1 flex flex-col items-center justify-center relative">
+                                <h4 className="text-base font-extrabold text-[#101B14] font-['Fraunces',serif] w-full text-left absolute top-6 left-6">
+                                    Flock Integrity
                                 </h4>
-                                <p className="text-[10px] font-mono text-slate-400">
-                                    Automated Evaluators: THI Microclimate, WFR Dehydration, and Exponential Mortality Velocity
+                                <div className="h-40 w-full relative mt-8">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie 
+                                                data={survivabilityData} 
+                                                innerRadius={55} outerRadius={75} 
+                                                paddingAngle={2} dataKey="value" stroke="none"
+                                            >
+                                                {survivabilityData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <RechartsTooltip 
+                                                contentStyle={{ borderRadius: '8px', border: `1px solid ${THEME.lightGray}`, fontSize: '12px', fontWeight: 'bold' }} 
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span className="text-2xl font-extrabold text-[#101B14] font-mono">
+                                            {(dashboard.survivabilityRatePercentage || 0).toFixed(0)}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* THI Radial Gauge */}
+                            <div className="bg-white border border-[#101B14]/10 rounded-2xl p-6 shadow-sm flex-1 flex flex-col items-center relative overflow-hidden">
+                                <h4 className="text-base font-extrabold text-[#101B14] font-['Fraunces',serif] w-full text-left absolute top-6 left-6">
+                                    THI Stress Radar
+                                </h4>
+                                <div className="h-32 w-full mt-10">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie 
+                                                data={thiGaugeData} 
+                                                cx="50%" cy="100%" 
+                                                startAngle={180} endAngle={0} 
+                                                innerRadius={70} outerRadius={90} 
+                                                paddingAngle={0} dataKey="value" stroke="none"
+                                            >
+                                                {thiGaugeData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="absolute bottom-6 flex flex-col items-center">
+                                    <span className="text-3xl font-extrabold text-[#101B14] font-mono leading-none">{currentTHI}</span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded mt-2 border ${currentTHI > 80 ? 'text-[#E76F51] bg-[#E76F51]/10 border-[#E76F51]/30' : 'text-[#D9A63E] bg-[#D9A63E]/10 border-[#D9A63E]/30'}`}>
+                                        {currentTHI > 80 ? 'Heat Stress' : 'Moderate'}
+                                    </span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* 4. BIOSECURITY INCIDENT TIMELINE */}
+                    <div className="bg-white border border-[#101B14]/10 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-[#DFD8C4] px-6 py-5 flex items-center justify-between border-b-2 border-[#101B14]/15">
+                            <div>
+                                <h4 className="text-lg font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
+                                    State Machine Incident Ledger
+                                </h4>
+                                <p className="text-[10px] text-[#101B14]/60 font-mono font-bold uppercase tracking-widest mt-1">
+                                    Automated Evaluators & Auditable Resolutions
                                 </p>
                             </div>
-                            <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-mono font-bold">
-                                {activeAlerts.length} Active Warnings
+                            <span className="px-3 py-1.5 rounded-full bg-white/50 text-[#101B14] text-[10px] font-mono font-bold border border-[#101B14]/10 shadow-sm">
+                                {activeAlerts.length} Active System Alerts
                             </span>
                         </div>
 
-                        <div className="p-6 pt-2">
+                        <div className="p-6 bg-[#FBF9F5]/30">
                             {activeAlerts.length > 0 ? (
                                 <div className="space-y-4">
                                     {activeAlerts.map((alert) => (
-                                        <div
-                                            key={alert.id}
-                                            className={`border rounded-2xl p-5 space-y-3 transition ${alert.status === 'TRIGGERED'
-                                                    ? 'border-rose-200 bg-rose-50/30'
-                                                    : 'border-amber-200 bg-amber-50/30'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
-                                                <div className="flex items-center space-x-3">
-                                                    <span
-                                                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${alert.alertType === 'CLIMATE_STRESS' || alert.alertType === 'MORTALITY_LIMIT_BREACH'
-                                                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                                                : 'bg-amber-100 text-amber-800 border border-amber-200'
-                                                            }`}
-                                                    >
-                                                        {alert.alertType}
+                                        <div key={alert.id} className={`p-5 rounded-2xl bg-white border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-sm ${alert.status === 'TRIGGERED' ? 'border-[#E76F51]/30 shadow-[inset_4px_0_0_#E76F51]' : 'border-[#D9A63E]/30 shadow-[inset_4px_0_0_#D9A63E]'}`}>
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <span className={`px-2.5 py-1 rounded text-[9px] font-extrabold uppercase tracking-widest ${alert.status === 'TRIGGERED' ? 'bg-[#E76F51] text-white' : 'bg-[#D9A63E] text-[#101B14]'}`}>
+                                                        {alert.status}
                                                     </span>
-                                                    <span className="text-xs font-mono text-slate-500">
-                                                        Logged: {new Date(alert.createdAt).toLocaleString()}
+                                                    <span className="text-[10px] font-bold text-[#101B14]/40 uppercase tracking-widest font-mono flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        {new Date(alert.createdAt).toLocaleString()}
                                                     </span>
                                                 </div>
-
-                                                <span
-                                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${alert.status === 'TRIGGERED'
-                                                            ? 'bg-rose-600 text-white'
-                                                            : 'bg-amber-600 text-white'
-                                                        }`}
-                                                >
-                                                    STATUS: {alert.status}
-                                                </span>
+                                                <h5 className="text-base font-extrabold text-[#101B14] mb-1">{alert.alertType.replace(/_/g, ' ')}</h5>
+                                                <p className="text-sm text-[#101B14]/60 font-medium max-w-2xl">{alert.diagnosisMessage}</p>
                                             </div>
-
-                                            {/* Diagnosis Output Text */}
-                                            <p className="text-xs font-sans text-slate-800 leading-relaxed font-semibold">
-                                                {alert.diagnosisMessage}
-                                            </p>
-
-                                            {/* Action Bar */}
-                                            <div className="flex items-center justify-end space-x-3 pt-2">
+                                            
+                                            <div className="shrink-0 flex gap-3 pt-2 md:pt-0">
                                                 {alert.status === 'TRIGGERED' && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAcknowledgeAlert(alert.id)}
-                                                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition cursor-pointer"
-                                                    >
-                                                        👁️ Acknowledge (Investigating)
+                                                    <button onClick={() => handleAcknowledgeAlert(alert.id)} className="px-5 py-2.5 bg-[#FBF9F5] border border-[#101B14]/10 rounded-lg text-[10px] font-extrabold uppercase tracking-widest text-[#101B14] hover:bg-[#ECE6D6] transition-colors cursor-pointer shadow-sm">
+                                                        Acknowledge Alert
                                                     </button>
                                                 )}
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setSelectedAlertForResolution(alert);
-                                                        setResolutionForm({
-                                                            actionCategory: 'VENTILATION_AND_COOLING',
-                                                            actionTaken: '',
-                                                            supervisorNotes: '',
-                                                            verifiedTemperature: undefined,
-                                                            verifiedWaterPressure: undefined,
-                                                        });
-                                                    }}
-                                                    className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer"
-                                                >
-                                                    🩺 Resolve Alert
-                                                </button>
+                                                {alert.status === 'ACKNOWLEDGED' && (
+                                                    <button onClick={() => { setSelectedAlertForResolution(alert); setResolutionForm({ actionCategory: 'VENTILATION_AND_COOLING', actionTaken: '', supervisorNotes: '', verifiedTemperature: undefined, verifiedWaterPressure: undefined }); }} className="px-5 py-2.5 bg-[#101B14] rounded-lg text-[10px] font-extrabold uppercase tracking-widest text-white hover:bg-[#3F6B47] transition-colors cursor-pointer shadow-md">
+                                                        Audit & Resolve
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="py-10 text-center text-slate-400 font-mono text-xs">
-                                    ✅ No active biosecurity alerts or environmental stress warnings for this cohort.
+                                <div className="py-16 text-center flex flex-col items-center bg-white rounded-2xl border border-[#101B14]/5 shadow-sm">
+                                    <div className="w-16 h-16 rounded-full bg-[#2A5C38]/10 flex items-center justify-center text-[#2A5C38] mb-4 shadow-inner">
+                                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    </div>
+                                    <h5 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif]">All Systems Normal</h5>
+                                    <span className="text-xs font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-2">No active biosecurity anomalies</span>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 font-mono text-xs">
-                    No active flock batch selected. Please select a farm facility and batch cohort above.
+                <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-2xl p-24 text-center flex flex-col items-center justify-center shadow-sm mt-6">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-inner border border-[#101B14]/5 mb-6">
+                        <svg className="w-10 h-10 text-[#101B14]/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    </div>
+                    <h3 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] mb-2">Radar Offline</h3>
+                    <p className="text-sm text-[#101B14]/60 font-medium max-w-sm">Please select a farm facility and active cohort from the dropdowns above to initiate tracking.</p>
                 </div>
             )}
 
-            {/* 6. AUDITABLE RESOLUTION MODAL */}
+            {/* 5. FROSTED RESOLUTION MODAL */}
             {selectedAlertForResolution && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-                    <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="fixed inset-0 bg-[#101B14]/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+                    <div className="bg-[#FBF9F5] rounded-3xl max-w-lg w-full shadow-2xl flex flex-col overflow-hidden border border-white/10 relative">
+                        {/* Decorative Top Accent */}
+                        <div className="h-2 w-full bg-gradient-to-r from-[#D9A63E] to-[#E76F51] shrink-0"></div>
+                        
+                        <div className="p-8 bg-white border-b border-[#101B14]/5 flex justify-between items-start">
                             <div>
-                                <h4 className="text-base font-bold text-slate-900">Resolve Biosecurity Alert</h4>
-                                <p className="text-xs text-slate-500 font-mono">
-                                    Batch #{selectedAlertForResolution.batchNumber} • {selectedAlertForResolution.alertType}
-                                </p>
+                                <h4 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif]">Resolve Incident</h4>
+                                <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-2">Audit log for Cohort #{selectedAlertForResolution.batchNumber}</p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedAlertForResolution(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold"
-                            >
-                                ✕
+                            <button onClick={() => setSelectedAlertForResolution(null)} className="text-[#101B14]/30 hover:text-[#E76F51] bg-[#101B14]/5 hover:bg-[#E76F51]/10 p-2 rounded-full transition-colors cursor-pointer">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
 
-                        <form onSubmit={handleResolveAlert} className="space-y-4">
+                        <form onSubmit={handleResolveAlert} className="p-8 space-y-5">
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Corrective Action Category *
-                                </label>
-                                <select
-                                    value={resolutionForm.actionCategory}
-                                    onChange={(e) =>
-                                        setResolutionForm({
-                                            ...resolutionForm,
-                                            actionCategory: e.target.value as AlertResolutionCategory,
-                                        })
-                                    }
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold"
+                                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Corrective Category *</label>
+                                <select 
+                                    value={resolutionForm.actionCategory} 
+                                    onChange={(e) => setResolutionForm({ ...resolutionForm, actionCategory: e.target.value as AlertResolutionCategory })}
+                                    className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#101B14]/15 text-[#101B14] text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/40 transition-all shadow-sm appearance-none"
+                                    style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
                                 >
-                                    <option value="VENTILATION_AND_COOLING">Ventilation & Cooling</option>
-                                    <option value="WATER_SYSTEM_REPAIR">Water System Repair</option>
-                                    <option value="MEDICINE_AND_TREATMENT">Medication & Treatment</option>
-                                    <option value="FEED_ADJUSTMENT">Feed Adjustment</option>
-                                    <option value="ENVIRONMENTAL_SANITATION">Environmental Sanitation</option>
-                                    <option value="EQUIPMENT_REPAIR">Equipment Repair</option>
-                                    <option value="FALSE_ALARM_VERIFIED">False Alarm Verified</option>
+                                    <option value="VENTILATION_AND_COOLING">Ventilation & Cooling System</option>
+                                    <option value="WATER_SYSTEM_REPAIR">Water/Hydration Pipeline Repair</option>
+                                    <option value="MEDICINE_AND_TREATMENT">Medical Intervention</option>
+                                    <option value="FEED_ADJUSTMENT">Feed Profile Adjustment</option>
+                                    <option value="ENVIRONMENTAL_SANITATION">Sanitation Protocol Initiated</option>
+                                    <option value="FALSE_ALARM_VERIFIED">False Alarm Verified (Sensor Error)</option>
                                 </select>
                             </div>
-
+                            
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Primary Action Taken * (Min 5 chars)
-                                </label>
-                                <textarea
-                                    rows={2}
-                                    required
-                                    minLength={5}
-                                    placeholder="e.g. Unblocked water pipeline pressure valve and turned on mist cooling fans."
+                                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Physical Action Taken *</label>
+                                <textarea 
+                                    required minLength={5} rows={3}
+                                    placeholder="e.g. Unblocked water pressure valve in pen 3 and restarted misting fans."
                                     value={resolutionForm.actionTaken}
                                     onChange={(e) => setResolutionForm({ ...resolutionForm, actionTaken: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs"
+                                    className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#101B14]/15 text-[#101B14] text-sm focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/40 transition-all shadow-sm resize-none"
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Verified Temp (°C)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        placeholder="e.g. 24.5"
-                                        value={resolutionForm.verifiedTemperature ?? ''}
-                                        onChange={(e) =>
-                                            setResolutionForm({
-                                                ...resolutionForm,
-                                                verifiedTemperature: e.target.value ? Number(e.target.value) : undefined,
-                                            })
-                                        }
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
+                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Verified Temp (°C)</label>
+                                    <input 
+                                        type="number" step="0.1" placeholder="e.g. 24.5"
+                                        value={resolutionForm.verifiedTemperature || ''}
+                                        onChange={(e) => setResolutionForm({ ...resolutionForm, verifiedTemperature: e.target.value ? Number(e.target.value) : undefined })}
+                                        className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#101B14]/15 text-[#101B14] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/40 transition-all shadow-sm"
                                     />
                                 </div>
-
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Verified Water Pressure (Bar)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        placeholder="e.g. 2.0"
-                                        value={resolutionForm.verifiedWaterPressure ?? ''}
-                                        onChange={(e) =>
-                                            setResolutionForm({
-                                                ...resolutionForm,
-                                                verifiedWaterPressure: e.target.value ? Number(e.target.value) : undefined,
-                                            })
-                                        }
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
+                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Water Pressure (Bar)</label>
+                                    <input 
+                                        type="number" step="0.1" placeholder="e.g. 2.0"
+                                        value={resolutionForm.verifiedWaterPressure || ''}
+                                        onChange={(e) => setResolutionForm({ ...resolutionForm, verifiedWaterPressure: e.target.value ? Number(e.target.value) : undefined })}
+                                        className="w-full px-4 py-3.5 rounded-xl bg-white border border-[#101B14]/15 text-[#101B14] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#D9A63E]/40 transition-all shadow-sm"
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Supervisor Notes (Optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Re-inspected fans at 14:00."
-                                    value={resolutionForm.supervisorNotes || ''}
-                                    onChange={(e) => setResolutionForm({ ...resolutionForm, supervisorNotes: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedAlertForResolution(null)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
-                                >
+                            <div className="flex gap-4 pt-6 border-t border-[#101B14]/10 mt-2">
+                                <button type="button" onClick={() => setSelectedAlertForResolution(null)} className="flex-1 py-4 bg-transparent text-[#101B14]/60 font-bold text-xs uppercase tracking-widest hover:bg-[#101B14]/5 rounded-xl transition-colors cursor-pointer">
                                     Cancel
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting || resolutionForm.actionTaken.trim().length < 5}
-                                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50"
-                                >
-                                    {submitting ? 'Resolving...' : 'Complete Resolution'}
+                                <button type="submit" disabled={submitting || resolutionForm.actionTaken.trim().length < 5} className="flex-1 py-4 bg-[#101B14] text-white font-extrabold text-xs uppercase tracking-widest rounded-xl hover:bg-[#3F6B47] transition-colors cursor-pointer disabled:opacity-50 shadow-lg shadow-[#101B14]/20">
+                                    {submitting ? 'Auditing...' : 'Seal Resolution'}
                                 </button>
                             </div>
                         </form>

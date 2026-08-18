@@ -63,4 +63,5 @@ export interface UserResponseDto {
     organisationId: number;
     parentId: number | null;
     createdAt: string;
+    isActive: boolean;
 }

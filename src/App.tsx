@@ -8,6 +8,12 @@ import { HeaderBar } from './components/layout/HeaderBar';
 import { authService } from './services/authService';
 import type { AuthResponseDto } from './types/auth';
 
+// Legal & Company Pages
+import { PrivacyPolicy } from './features/legal/PrivacyPolicy';
+import { TermsOfService } from './features/legal/TermsOfService';
+import { AboutUs } from './features/company/AboutUs'; 
+import { ContactUs } from './features/company/ContactUs'; // <-- Synced with new explicit contact feature view
+
 // Views
 import { ManagerManagementView } from './features/users/ManagerManagementView';
 import { FarmManagementView } from './features/farms/FarmManagementView';
@@ -24,6 +30,9 @@ export function App() {
     return authService.getCurrentAuth();
   });
 
+  // State to manage mobile sidebar overlay visibility
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
   const handleLogout = () => {
     authService.logout();
     setAuthData(null);
@@ -36,6 +45,11 @@ export function App() {
     <Routes>
       {/* ================= PUBLIC & AUTH GATEWAY ROUTES ================= */}
       <Route path="/" element={<LandingPageWrapper />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/contact" element={<ContactUs />} /> {/* <-- Mapped explicitly to independent view component */}
+      
       <Route
         path="/auth/proprietor"
         element={<AuthScreen onAuthSuccess={setAuthData} portalType="PROPRIETOR" />}
@@ -55,12 +69,22 @@ export function App() {
           path={`/${portalNamespace}/*`}
           element={
             <div className="flex h-screen bg-[#ECE6D6] text-[#161F17] font-sans overflow-hidden">
-              <Sidebar userRole={authData.role} onLogout={handleLogout} />
+              {/* Responsive Collapsible Sidebar Drawer */}
+              <Sidebar
+                userRole={authData.role}
+                onLogout={handleLogout}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+              />
 
               <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#ECE6D6]">
-                <HeaderBar authData={authData} />
+                {/* HeaderBar with Hamburger Toggle for Mobile */}
+                <HeaderBar
+                  authData={authData}
+                  onMenuToggle={() => setIsSidebarOpen(true)}
+                />
 
-                <main className="p-6 sm:p-8 flex-1 space-y-8">
+                <main className="p-4 sm:p-6 lg:p-8 flex-1 space-y-8">
                   <Routes>
                     {/* Dashboard Route */}
                     <Route
@@ -70,14 +94,14 @@ export function App() {
                           <div className="space-y-6 max-w-7xl mx-auto">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#101B14]/10 pb-5">
                               <div>
-                                <h3 className="text-2xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
+                                <h3 className="text-xl sm:text-2xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
                                   Proprietor Executive Dashboard
                                 </h3>
                                 <p className="text-xs text-[#101B14]/70 font-medium mt-1">
                                   Real-time operational overview, livestock population metrics, and facility telemetry.
                                 </p>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 self-start sm:self-auto">
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#3F6B47] animate-pulse" />
                                 <span className="text-xs font-mono font-bold text-[#3F6B47] uppercase tracking-wider bg-[#3F6B47]/10 border border-[#3F6B47]/20 px-3 py-1 rounded-[3px]">
                                   System Normal
@@ -85,8 +109,8 @@ export function App() {
                               </div>
                             </div>
 
-                            {/* KPI Metrics Grid with Mature Monochromatic SVG Icons */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                            {/* KPI Metrics Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                               {/* Card 1 */}
                               <div className="bg-[#F5F1E6] p-5 rounded-[4px] border border-[#101B14]/15 shadow-xs transition hover:border-[#3F6B47]/40">
                                 <div className="flex items-center justify-between text-[#101B14]/60">
@@ -96,7 +120,7 @@ export function App() {
                                   </svg>
                                 </div>
                                 <div className="mt-3 flex items-baseline justify-between">
-                                  <span className="text-3xl font-extrabold text-[#101B14] font-mono">1</span>
+                                  <span className="text-2xl sm:text-3xl font-extrabold text-[#101B14] font-mono">1</span>
                                   <span className="text-[11px] font-bold text-[#3F6B47] bg-[#3F6B47]/10 px-2 py-0.5 rounded-[2px]">100% Operational</span>
                                 </div>
                               </div>
@@ -110,7 +134,7 @@ export function App() {
                                   </svg>
                                 </div>
                                 <div className="mt-3 flex items-baseline justify-between">
-                                  <span className="text-3xl font-extrabold text-[#101B14] font-mono">1</span>
+                                  <span className="text-2xl sm:text-3xl font-extrabold text-[#101B14] font-mono">1</span>
                                   <span className="text-[11px] font-bold text-[#3A5B6B] bg-[#3A5B6B]/10 px-2 py-0.5 rounded-[2px]">1 Active Pen</span>
                                 </div>
                               </div>
@@ -124,7 +148,7 @@ export function App() {
                                   </svg>
                                 </div>
                                 <div className="mt-3 flex items-baseline justify-between">
-                                  <span className="text-3xl font-extrabold text-[#101B14] font-mono">2,500</span>
+                                  <span className="text-2xl sm:text-3xl font-extrabold text-[#101B14] font-mono">2,500</span>
                                   <span className="text-[11px] font-bold text-[#3F6B47] bg-[#3F6B47]/10 px-2 py-0.5 rounded-[2px]">0.0% Mortality</span>
                                 </div>
                               </div>
@@ -138,7 +162,7 @@ export function App() {
                                   </svg>
                                 </div>
                                 <div className="mt-3 flex items-baseline justify-between">
-                                  <span className="text-3xl font-extrabold text-[#101B14] font-mono">1</span>
+                                  <span className="text-2xl sm:text-3xl font-extrabold text-[#101B14] font-mono">1</span>
                                 </div>
                               </div>
                             </div>
@@ -149,10 +173,10 @@ export function App() {
                       }
                     />
 
-                    {/* Sub-Module Routes */}
+                    {/* Sub-Module Routes WITH TRAILING WILDCARDS (/*) added here */}
                     {isProprietor && authData.organisationId && (
                       <Route
-                        path="managers"
+                        path="managers/*"
                         element={
                           <div className="max-w-7xl mx-auto">
                             <ManagerManagementView organisationId={authData.organisationId} proprietorId={authData.userId ?? 6} />
@@ -164,7 +188,7 @@ export function App() {
                     {authData.organisationId && (
                       <>
                         <Route
-                          path="farms"
+                          path="farms/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <FarmManagementView organisationId={authData.organisationId} proprietorId={authData.userId ?? 6} userRole={authData.role} currentUserId={authData.userId} />
@@ -172,7 +196,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="sections"
+                          path="sections/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <GlobalSectionsView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
@@ -180,7 +204,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="batches"
+                          path="batches/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <BatchManagementView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
@@ -188,7 +212,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="daily-logs"
+                          path="daily-logs/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <DailyLogsHubView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
@@ -196,7 +220,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="inventory"
+                          path="inventory/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <InventoryManagementView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
@@ -204,7 +228,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="financials"
+                          path="financials/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <FinancialWorkspaceView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />
@@ -212,7 +236,7 @@ export function App() {
                           }
                         />
                         <Route
-                          path="analytics"
+                          path="analytics/*"
                           element={
                             <div className="max-w-7xl mx-auto">
                               <AnalyticsCommandHubView organisationId={authData.organisationId} userRole={authData.role} currentUserId={authData.userId} />

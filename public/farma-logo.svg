@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40">
+  <!-- The Gold Dot -->
+  <circle cx="16" cy="20" r="6" fill="#D9A63E" />
+  
+  <!-- The 'Farma' Text -->
+  <text x="32" y="27" font-family="'Fraunces', Georgia, serif" font-size="24" font-weight="600" fill="#101B14" letter-spacing="-0.5">Farma</text>
+</svg>

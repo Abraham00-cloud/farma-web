@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { batchService } from '../../services/batchService';
 import { dailyLogService } from '../../services/dailyLogService';
-import type { BatchResponseDto, BatchCloseRequestDto } from '../../types/batch';
+import type { BatchResponseDto } from '../../types/batch';
 import type { DailyLogResponseDto, DailyLogRequestDto } from '../../types/dailyLog';
 
 interface BatchDetailViewProps {
@@ -16,10 +16,11 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Modals
     const [showLogModal, setShowLogModal] = useState<boolean>(false);
-    const [showCloseModal, setShowCloseModal] = useState<boolean>(false);
+    const [showHarvestModal, setShowHarvestModal] = useState<boolean>(false);
 
     // Daily Log Form State
     const [logForm, setLogForm] = useState<Omit<DailyLogRequestDto, 'batchId'>>({
@@ -32,13 +33,14 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         observations: '',
     });
 
-    // Batch Closure Form State
-    const [closeForm, setCloseForm] = useState<BatchCloseRequestDto>(() => ({
-        actualEndDate: new Date().toISOString().split('T')[0],
-        totalBirdsSold: 0,
-        totalSaleRevenue: 0,
-        harvestNotes: '',
-    }));
+    // Dynamic Harvest Form State (Handles both Partial & Final)
+    const [harvestForm, setHarvestForm] = useState({
+        saleDate: new Date().toISOString().split('T')[0],
+        birdsSold: 0,
+        saleRevenue: 0,
+        notes: '',
+        isFinalHarvest: false, // <-- The crucial toggle
+    });
 
     const loadData = async () => {
         try {
@@ -48,13 +50,15 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
             ]);
             setBatch(batchData);
             setLogs(logData);
-            setCloseForm((prev) => ({
+            
+            // Auto-populate harvest form with remaining birds
+            setHarvestForm((prev) => ({
                 ...prev,
-                totalBirdsSold: batchData.currentCount,
-                totalSaleRevenue: batchData.currentCount * 2500,
+                birdsSold: batchData.currentCount,
+                saleRevenue: 0, // Reset to 0 so they don't accidentally submit wrong revenue
             }));
         } catch {
-            // Fallback
+            setErrorMessage("Failed to refresh batch data.");
         } finally {
             setLoading(false);
         }
@@ -72,10 +76,10 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                 if (isMounted) {
                     setBatch(batchData);
                     setLogs(logData);
-                    setCloseForm((prev) => ({
+                    setHarvestForm((prev) => ({
                         ...prev,
-                        totalBirdsSold: batchData.currentCount,
-                        totalSaleRevenue: batchData.currentCount * 2500,
+                        birdsSold: batchData.currentCount,
+                        saleRevenue: 0,
                     }));
                 }
             } catch {
@@ -115,6 +119,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         try {
             await dailyLogService.createDailyLog(payload);
             setShowLogModal(false);
+            setSuccessMessage("Daily log recorded successfully.");
             setLogForm({
                 logDate: new Date().toISOString().split('T')[0],
                 feedQuantityUsed: 0,
@@ -125,9 +130,10 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                 observations: '',
             });
             await loadData();
+            setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
-                setErrorMessage(err.response?.data?.message || 'Failed to submit daily telemetry log.');
+                setErrorMessage(err.response?.data?.message || 'Failed to submit daily log.');
             } else {
                 setErrorMessage('An unexpected error occurred.');
             }
@@ -136,25 +142,47 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         }
     };
 
-    const handleCloseBatch = async (e: React.FormEvent) => {
+    const handleHarvestSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!batch) return;
+
+        if (harvestForm.birdsSold > batch.currentCount) {
+            setErrorMessage(`You cannot sell more birds (${harvestForm.birdsSold}) than are currently alive in the pen (${batch.currentCount}).`);
+            return;
+        }
 
         setSubmitting(true);
         setErrorMessage(null);
 
         try {
-            await batchService.closeBatch(batch.id, {
-                actualEndDate: closeForm.actualEndDate,
-                totalBirdsSold: Number(closeForm.totalBirdsSold),
-                totalSaleRevenue: Number(closeForm.totalSaleRevenue),
-                harvestNotes: closeForm.harvestNotes?.trim(),
-            });
-            setShowCloseModal(false);
+            if (harvestForm.isFinalHarvest) {
+                // Route 1: Close the Batch completely
+                await batchService.closeBatch(batch.id, {
+                    actualEndDate: harvestForm.saleDate,
+                    totalBirdsSold: Number(harvestForm.birdsSold),
+                    totalSaleRevenue: Number(harvestForm.saleRevenue),
+                    harvestNotes: harvestForm.notes?.trim(),
+                });
+                setSuccessMessage("Batch officially closed and harvest finalized!");
+            } else {
+                // Route 2: Partial Sale (Keeps batch active)
+                await batchService.recordPartialSale(batch.id, {
+                    saleDate: harvestForm.saleDate,
+                    birdsSold: Number(harvestForm.birdsSold),
+                    saleRevenue: Number(harvestForm.saleRevenue),
+                    notes: harvestForm.notes?.trim(),
+                });
+                setSuccessMessage("Partial sale recorded successfully! Batch remains active.");
+            }
+            
+            setShowHarvestModal(false);
             await loadData();
+            setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
-                setErrorMessage(err.response?.data?.message || 'Failed to finalize harvest.');
+                setErrorMessage(err.response?.data?.message || 'Failed to process harvest transaction.');
+            } else {
+                setErrorMessage('An unexpected error occurred.');
             }
         } finally {
             setSubmitting(false);
@@ -163,22 +191,31 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
 
     if (loading) {
         return (
-            <div className="bg-white p-12 rounded-2xl text-center text-xs font-mono text-slate-400">
-                Loading operational batch dossier...
+            <div className="bg-[#FBF9F5] border border-[#101B14]/10 p-24 rounded-xl text-center flex flex-col items-center justify-center shadow-xs">
+                <div className="w-12 h-12 border-4 border-[#3F6B47]/20 border-t-[#3F6B47] rounded-full animate-spin mb-6"></div>
+                <span className="text-[#101B14]/60 text-sm font-bold uppercase tracking-widest font-mono">
+                    Loading flock details...
+                </span>
             </div>
         );
     }
 
     if (!batch) {
         return (
-            <div className="bg-white p-12 rounded-2xl text-center text-xs font-mono text-slate-500 space-y-3">
-                <p>Batch record not found.</p>
+            <div className="bg-[#FBF9F5] border border-[#E76F51]/20 rounded-xl p-16 text-center shadow-xs flex flex-col items-center max-w-2xl mx-auto mt-12">
+                <div className="w-20 h-20 rounded-full bg-[#E76F51]/10 text-[#E76F51] flex items-center justify-center mb-6">
+                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <h3 className="text-2xl font-extrabold text-[#101B14] mb-3 font-['Fraunces',serif]">Flock Not Found</h3>
+                <p className="text-[#101B14]/60 mb-8 text-sm font-medium">This flock batch record could not be found.</p>
                 <button
                     type="button"
                     onClick={onBack}
-                    className="text-xs font-bold text-slate-700 underline cursor-pointer"
+                    className="px-6 py-3 bg-[#3F6B47] text-white rounded-lg font-bold text-xs uppercase tracking-wider shadow-sm hover:bg-[#2d4f34] transition-colors cursor-pointer"
                 >
-                    ← Go Back
+                    Return to All Flocks
                 </button>
             </div>
         );
@@ -191,380 +228,474 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
     const totalFeedConsumed = logs.reduce((acc, curr) => acc + (curr.feedQuantityUsed || 0), 0);
 
     return (
-        <div className="space-y-6">
-            {/* Top Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-16">
+            
+            {/* Top Navigation & Action Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
                 <button
                     type="button"
                     onClick={onBack}
-                    className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center space-x-1 cursor-pointer"
+                    className="text-xs font-bold text-[#101B14]/70 hover:text-[#101B14] flex items-center space-x-2 cursor-pointer transition-colors w-fit"
                 >
-                    <span>← Back to Command Center</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Back to Previous View</span>
                 </button>
 
                 {batch.status === 'ACTIVE' && (
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <button
                             type="button"
                             onClick={() => setShowLogModal(true)}
-                            className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider shadow-xs cursor-pointer"
+                            className="px-5 py-3 rounded-lg bg-[#D9A63E] hover:bg-[#c99834] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
                         >
-                            📝 Record Daily Telemetry
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span>Record Daily Log</span>
                         </button>
                         <button
                             type="button"
-                            onClick={() => setShowCloseModal(true)}
-                            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-xs cursor-pointer"
+                            onClick={() => {
+                                setHarvestForm(prev => ({ ...prev, birdsSold: batch.currentCount, isFinalHarvest: false }));
+                                setShowHarvestModal(true);
+                            }}
+                            className="px-5 py-3 rounded-lg bg-[#101B14] hover:bg-[#3F6B47] text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
                         >
-                            🌾 Harvest & Finalize Cycle
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Record Sale / Harvest</span>
                         </button>
                     </div>
                 )}
             </div>
 
+            {/* Success Feedback Alert */}
+            {successMessage && (
+                <div className="p-4 rounded-xl bg-[#2A5C38]/10 border border-[#2A5C38]/30 text-[#2A5C38] text-xs font-bold shadow-sm flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {successMessage}
+                </div>
+            )}
+
             {/* Hero Batch Banner */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-6 sm:p-8 shadow-xs relative overflow-hidden space-y-6">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 mt-1">
                     <div>
-                        <div className="flex items-center space-x-3">
-                            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
                                 {batch.batchNumber}
                             </h2>
                             <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${batch.status === 'ACTIVE'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${batch.status === 'ACTIVE'
+                                        ? 'bg-[#3F6B47]/10 text-[#3F6B47] border border-[#3F6B47]/25'
+                                        : 'bg-[#101B14]/5 text-[#101B14]/60 border border-[#101B14]/10'
                                     }`}
                             >
                                 {batch.status}
                             </span>
                         </div>
-                        <p className="text-xs text-slate-500 font-mono mt-1">
-                            Housing Pen: <span className="font-bold text-slate-800">{batch.sectionName}</span> • Category: {batch.animalCategory} ({batch.productionType})
+                        <p className="text-xs sm:text-sm text-[#101B14]/70 font-mono mt-3 flex items-center gap-2">
+                            <span>Housing Pen: <strong className="text-[#101B14]">{batch.sectionName}</strong></span>
+                            <span className="text-[#101B14]/30 mx-1">•</span>
+                            <span>Type: <strong className="text-[#101B14]">{batch.animalCategory} ({batch.productionType})</strong></span>
                         </p>
                     </div>
 
-                    <div className="flex items-center space-x-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs font-mono">
+                    <div className="flex items-center space-x-4 bg-white p-4 rounded-lg border border-[#101B14]/10 text-xs font-mono shadow-xs">
                         <div>
-                            <span className="text-slate-400 block text-[10px] uppercase">Batch ID</span>
-                            <span className="font-bold text-slate-900">#{batch.id}</span>
+                            <span className="text-[#101B14]/50 block text-[9px] uppercase tracking-wider font-bold mb-1">Batch ID</span>
+                            <span className="font-extrabold text-[#101B14] text-sm">#{batch.id}</span>
                         </div>
-                        <div className="h-6 w-px bg-slate-200" />
+                        <div className="h-8 w-px bg-[#101B14]/10" />
                         <div>
-                            <span className="text-slate-400 block text-[10px] uppercase">Placement Date</span>
-                            <span className="font-bold text-slate-800">{batch.startDate}</span>
+                            <span className="text-[#101B14]/50 block text-[9px] uppercase tracking-wider font-bold mb-1">Started On</span>
+                            <span className="font-extrabold text-[#101B14] text-sm">{batch.startDate}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Live Metrics */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                            Current Population
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#101B14]/10">
+                    <div className="bg-white p-4 rounded-lg border border-[#101B14]/10 shadow-xs">
+                        <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-wider block mb-1">
+                            Current Live Birds
                         </span>
-                        <div className="text-xl font-extrabold text-slate-900 mt-1">
-                            {batch.currentCount.toLocaleString()} Heads
+                        <div className="text-xl sm:text-2xl font-extrabold text-[#101B14] font-mono">
+                            {batch.currentCount.toLocaleString()}
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                            Cumulative Mortality
+                    <div className="bg-white p-4 rounded-lg border border-[#101B14]/10 shadow-xs">
+                        <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-wider block mb-1">
+                            Total Mortality
                         </span>
-                        <div className="text-xl font-extrabold text-rose-600 mt-1">
-                            {batch.mortalityCount.toLocaleString()} Casualties
+                        <div className="text-xl sm:text-2xl font-extrabold text-[#E76F51] font-mono">
+                            {batch.mortalityCount.toLocaleString()}
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                            Flock Survival Index
+                    <div className="bg-white p-4 rounded-lg border border-[#101B14]/10 shadow-xs">
+                        <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-wider block mb-1">
+                            Survival Rate
                         </span>
-                        <div className="text-xl font-extrabold text-emerald-600 mt-1">
+                        <div className="text-xl sm:text-2xl font-extrabold text-[#3F6B47] font-mono">
                             {survivalRate}%
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                            Total Feed Consumed
+                    <div className="bg-white p-4 rounded-lg border border-[#101B14]/10 shadow-xs">
+                        <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-wider block mb-1">
+                            Total Feed Used
                         </span>
-                        <div className="text-xl font-extrabold text-[#C2410C] mt-1">
-                            {totalFeedConsumed.toFixed(1)} Bags/kg
+                        <div className="text-xl sm:text-2xl font-extrabold text-[#D9A63E] font-mono">
+                            {totalFeedConsumed.toFixed(1)} <span className="text-xs font-sans font-normal text-[#101B14]/60">Units</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Daily Telemetry Timeline Ledger */}
-            <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">Daily Telemetry & Growth Log</h3>
-                    <span className="text-xs font-mono text-slate-400">{logs.length} Log Entries</span>
+            {/* Daily Log Ledger Table */}
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h3 className="text-xl font-bold text-[#101B14] font-['Fraunces',serif]">Daily Farm Log</h3>
+                    <span className="text-xs font-mono font-bold text-[#101B14]/60">
+                        {logs.length} Recorded Entries
+                    </span>
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                    <table className="w-full text-left text-xs font-sans text-slate-700">
-                        <thead className="bg-slate-50 text-slate-500 font-mono uppercase text-[10px] tracking-wider border-b border-slate-200">
-                            <tr>
-                                <th className="px-5 py-3.5">Log Date</th>
-                                <th className="px-5 py-3.5">Feed Used</th>
-                                <th className="px-5 py-3.5">Meds Administered</th>
-                                <th className="px-5 py-3.5">Casualties</th>
-                                <th className="px-5 py-3.5">Avg Weight (kg)</th>
-                                <th className="px-5 py-3.5">Audited By</th>
-                                <th className="px-5 py-3.5">Observations</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-mono">
-                            {logs.length > 0 ? (
-                                logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-slate-50/80 transition">
-                                        <td className="px-5 py-4 font-bold text-slate-900">{log.logDate}</td>
-                                        <td className="px-5 py-4 font-bold text-[#C2410C]">
-                                            {log.feedQuantityUsed ? `${log.feedQuantityUsed} units` : '-'}
-                                        </td>
-                                        <td className="px-5 py-4 text-slate-700">
-                                            {log.medicineQuantityUsed ? `${log.medicineQuantityUsed} units` : '-'}
-                                        </td>
-                                        <td className="px-5 py-4 font-bold text-rose-600">
-                                            {log.mortalityCount > 0 ? `${log.mortalityCount} 💀` : '0'}
-                                        </td>
-                                        <td className="px-5 py-4 font-bold text-slate-900">
-                                            {log.averageWeight ? `${log.averageWeight} kg` : '-'}
-                                        </td>
-                                        <td className="px-5 py-4 text-emerald-700 font-bold">{log.recordedByName}</td>
-                                        <td className="px-5 py-4 text-slate-500 max-w-xs truncate">
-                                            {log.observations || '-'}
+                <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl overflow-hidden shadow-xs">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-[#101B14] min-w-[900px]">
+                            {/* Darker Cream Header */}
+                            <thead className="bg-[#DFD8C4] border-b-2 border-[#101B14]/15 text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/80 shadow-xs">
+                                <tr>
+                                    <th className="px-6 py-5 whitespace-nowrap">Date</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Feed Used</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Meds Given</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Mortality</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Avg Weight</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Recorded By</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Observations</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#101B14]/10 bg-[#FBF9F5] font-mono text-xs">
+                                {logs.length > 0 ? (
+                                    logs.map((log) => (
+                                        <tr key={log.id} className="group hover:bg-[#ECE6D6] hover:border-l-4 hover:border-l-[#3F6B47] transition-all">
+                                            <td className="px-6 py-5 font-bold text-[#101B14]">
+                                                {log.logDate}
+                                            </td>
+                                            <td className="px-6 py-5 font-bold text-[#D9A63E]">
+                                                {log.feedQuantityUsed ? `${log.feedQuantityUsed} units` : '-'}
+                                            </td>
+                                            <td className="px-6 py-5 font-medium text-[#101B14]/80">
+                                                {log.medicineQuantityUsed ? `${log.medicineQuantityUsed} units` : '-'}
+                                            </td>
+                                            <td className="px-6 py-5 font-bold text-[#E76F51]">
+                                                {log.mortalityCount > 0 ? `${log.mortalityCount} birds` : '0'}
+                                            </td>
+                                            <td className="px-6 py-5 font-bold text-[#101B14]">
+                                                {log.averageWeight ? `${log.averageWeight} kg` : '-'}
+                                            </td>
+                                            <td className="px-6 py-5 text-[#3F6B47] font-bold">
+                                                {log.recordedByName}
+                                            </td>
+                                            <td className="px-6 py-5 text-[#101B14]/60 font-sans max-w-xs truncate" title={log.observations}>
+                                                {log.observations || '-'}
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-16 text-center bg-[#FBF9F5]">
+                                            <div className="flex flex-col items-center justify-center space-y-3">
+                                                <svg className="w-10 h-10 text-[#101B14]/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <span className="text-[#101B14]/60 font-bold text-sm font-sans">
+                                                    No daily records logged for this flock yet.
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
-                                        No telemetry records logged for this batch cycle yet.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            {/* Record Telemetry Modal */}
+            {/* Record Daily Log Modal */}
             {showLogModal && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-                    <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-[#FBF9F5] border border-[#D9A63E]/40 rounded-xl max-w-lg w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                        
+                        <div className="h-2 w-full bg-[#D9A63E] relative shrink-0 shadow-sm"></div>
+
+                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-base font-bold text-slate-900">Record Daily Telemetry Log</h4>
-                                <p className="text-xs text-slate-500">Batch: {batch.batchNumber}</p>
+                                <h4 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Daily Farm Log</h4>
+                                <p className="text-[10px] font-mono font-bold text-[#3F6B47] uppercase tracking-widest mt-1.5">
+                                    Recording data for: {batch.batchNumber}
+                                </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowLogModal(false)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
+                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
                             >
-                                ✕
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
                         </div>
 
-                        {errorMessage && (
-                            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono">
-                                🚨 {errorMessage}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleCreateDailyLog} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Log Date *
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={logForm.logDate}
-                                    onChange={(e) => setLogForm({ ...logForm, logDate: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Feed Quantity Used (Units)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        min="0"
-                                        value={logForm.feedQuantityUsed || ''}
-                                        onChange={(e) => setLogForm({ ...logForm, feedQuantityUsed: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
-                                    />
+                        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                            {errorMessage && (
+                                <div className="mb-6 p-4 rounded-lg bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-sm font-bold flex items-start space-x-3 shadow-sm">
+                                    <span className="leading-relaxed">{errorMessage}</span>
                                 </div>
+                            )}
 
+                            <form id="daily-log-form" onSubmit={handleCreateDailyLog} className="space-y-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Casualties / Mortality *
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                        Log Date *
                                     </label>
                                     <input
-                                        type="number"
+                                        type="date"
                                         required
-                                        min="0"
-                                        max={batch.currentCount}
-                                        value={logForm.mortalityCount}
-                                        onChange={(e) => setLogForm({ ...logForm, mortalityCount: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white"
+                                        value={logForm.logDate}
+                                        onChange={(e) => setLogForm({ ...logForm, logDate: e.target.value })}
+                                        className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/50 transition-all shadow-sm"
                                     />
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Feed Used (Units)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            value={logForm.feedQuantityUsed || ''}
+                                            onChange={(e) => setLogForm({ ...logForm, feedQuantityUsed: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/50 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Mortality (Lost Birds) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            max={batch.currentCount}
+                                            value={logForm.mortalityCount}
+                                            onChange={(e) => setLogForm({ ...logForm, mortalityCount: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#E76F51] text-sm font-bold focus:outline-none focus:border-[#E76F51] focus:ring-2 focus:ring-[#E76F51]/30 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Meds Given (Units)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            value={logForm.medicineQuantityUsed || ''}
+                                            onChange={(e) => setLogForm({ ...logForm, medicineQuantityUsed: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/50 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Avg Bird Weight (kg)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={logForm.averageWeight || ''}
+                                            onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/50 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Medicine Quantity Used
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                        Observations / Notes
                                     </label>
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        min="0"
-                                        value={logForm.medicineQuantityUsed || ''}
-                                        onChange={(e) => setLogForm({ ...logForm, medicineQuantityUsed: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
+                                    <textarea
+                                        rows={3}
+                                        maxLength={500}
+                                        value={logForm.observations || ''}
+                                        onChange={(e) => setLogForm({ ...logForm, observations: e.target.value })}
+                                        placeholder="e.g. Normal feed intake today. Weather was hot."
+                                        className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-medium focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/50 transition-all shadow-sm"
                                     />
                                 </div>
+                            </form>
+                        </div>
 
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Avg Body Weight (kg)
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={logForm.averageWeight || ''}
-                                        onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Observations / Biosecurity Notes
-                                </label>
-                                <textarea
-                                    rows={2}
-                                    maxLength={500}
-                                    value={logForm.observations || ''}
-                                    onChange={(e) => setLogForm({ ...logForm, observations: e.target.value })}
-                                    placeholder="e.g. Normal feed intake. Vaccinated against Newcastle disease."
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowLogModal(false)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-50"
-                                >
-                                    {submitting ? 'Submitting...' : 'Save Telemetry Log'}
-                                </button>
-                            </div>
-                        </form>
+                        <div className="p-6 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-4 z-10">
+                            <button
+                                type="button"
+                                onClick={() => setShowLogModal(false)}
+                                className="w-full sm:w-auto px-6 py-4 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="daily-log-form"
+                                disabled={submitting}
+                                className="w-full sm:w-auto px-8 py-4 rounded-lg bg-[#D9A63E] hover:bg-[#c99834] text-[#101B14] font-extrabold text-sm uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                            >
+                                {submitting ? 'Saving...' : 'Save Daily Data'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Harvest Modal */}
-            {showCloseModal && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-                    <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <h4 className="text-base font-bold text-slate-900">Harvest & Close Batch</h4>
+            {/* Harvest / Sale Modal */}
+            {showHarvestModal && (
+                <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-[#FBF9F5] border border-[#3F6B47]/40 rounded-xl max-w-md w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                        
+                        <div className="h-2 w-full bg-[#3F6B47] relative shrink-0 shadow-sm"></div>
+
+                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                            <div>
+                                <h4 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Record Sale</h4>
+                                <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-1.5">
+                                    Current Pen Balance: <strong className="text-[#3F6B47]">{batch.currentCount} birds</strong>
+                                </p>
+                            </div>
                             <button
                                 type="button"
-                                onClick={() => setShowCloseModal(false)}
-                                className="text-slate-400 hover:text-slate-600 font-bold"
+                                onClick={() => setShowHarvestModal(false)}
+                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
                             >
-                                ✕
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
                         </div>
 
-                        {errorMessage && (
-                            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono">
-                                🚨 {errorMessage}
-                            </div>
-                        )}
+                        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                            {errorMessage && (
+                                <div className="mb-6 p-4 rounded-lg bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-sm font-bold flex items-start space-x-3 shadow-sm">
+                                    <span className="leading-relaxed">{errorMessage}</span>
+                                </div>
+                            )}
 
-                        <form onSubmit={handleCloseBatch} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Actual Harvest End Date *
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={closeForm.actualEndDate}
-                                    onChange={(e) => setCloseForm({ ...closeForm, actualEndDate: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Total Sold *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        required
-                                        min={0}
-                                        value={closeForm.totalBirdsSold}
-                                        onChange={(e) => setCloseForm({ ...closeForm, totalBirdsSold: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
-                                    />
+                            <form id="harvest-form" onSubmit={handleHarvestSubmit} className="space-y-6">
+                                
+                                {/* Dynamic Toggle Switch */}
+                                <div className="bg-white border border-[#101B14]/10 rounded-lg p-4 flex items-center justify-between shadow-sm cursor-pointer" onClick={() => setHarvestForm(prev => ({ ...prev, isFinalHarvest: !prev.isFinalHarvest }))}>
+                                    <div>
+                                        <span className="block text-sm font-extrabold text-[#101B14]">Final Batch Harvest?</span>
+                                        <span className="block text-[10px] text-[#101B14]/60 mt-1 font-medium">
+                                            {harvestForm.isFinalHarvest 
+                                                ? 'Yes. This will clear the pen and unlock the facility.' 
+                                                : 'No. Just recording a partial sale. Keep batch active.'}
+                                        </span>
+                                    </div>
+                                    <div className={`w-12 h-6 rounded-full transition-colors relative flex items-center ${harvestForm.isFinalHarvest ? 'bg-[#3F6B47]' : 'bg-[#101B14]/20'}`}>
+                                        <div className={`w-4 h-4 bg-white rounded-full shadow-md absolute transition-transform ${harvestForm.isFinalHarvest ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                                    </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Total Revenue (₦) *
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                        Date of Sale *
                                     </label>
                                     <input
-                                        type="number"
+                                        type="date"
                                         required
-                                        min={1}
-                                        value={closeForm.totalSaleRevenue}
-                                        onChange={(e) => setCloseForm({ ...closeForm, totalSaleRevenue: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono"
+                                        value={harvestForm.saleDate}
+                                        onChange={(e) => setHarvestForm({ ...harvestForm, saleDate: e.target.value })}
+                                        className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm"
                                     />
                                 </div>
-                            </div>
 
-                            <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCloseModal(false)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase disabled:opacity-50"
-                                >
-                                    {submitting ? 'Finalizing...' : 'Finalize Harvest'}
-                                </button>
-                            </div>
-                        </form>
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Birds Sold *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min={1}
+                                            max={batch.currentCount}
+                                            value={harvestForm.birdsSold || ''}
+                                            onChange={(e) => setHarvestForm({ ...harvestForm, birdsSold: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                            Revenue (₦) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min={1}
+                                            value={harvestForm.saleRevenue || ''}
+                                            onChange={(e) => setHarvestForm({ ...harvestForm, saleRevenue: Number(e.target.value) })}
+                                            className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                        Invoice Notes (Optional)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={harvestForm.notes}
+                                        onChange={(e) => setHarvestForm({ ...harvestForm, notes: e.target.value })}
+                                        placeholder="e.g. Sold 500 birds to local vendor."
+                                        className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-medium focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm"
+                                    />
+                                </div>
+                            </form>
+                        </div>
+
+                        <div className="p-6 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-4 z-10">
+                            <button
+                                type="button"
+                                onClick={() => setShowHarvestModal(false)}
+                                className="w-full sm:w-auto px-6 py-4 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="harvest-form"
+                                disabled={submitting}
+                                className={`w-full sm:w-auto px-8 py-4 rounded-lg text-white font-extrabold text-sm uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 ${harvestForm.isFinalHarvest ? 'bg-[#E76F51] hover:bg-[#c65e43]' : 'bg-[#101B14] hover:bg-[#3F6B47]'}`}
+                            >
+                                {submitting ? 'Processing...' : harvestForm.isFinalHarvest ? 'Close Batch' : 'Record Sale'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

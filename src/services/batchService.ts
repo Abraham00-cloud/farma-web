@@ -4,6 +4,7 @@ import type {
     BatchResponseDto,
     BatchCloseRequestDto,
     BatchCloseResponseDto,
+    PartialSaleRequestDto, // <-- Added import
 } from '../types/batch';
 
 export const batchService = {
@@ -44,5 +45,13 @@ export const batchService = {
             data
         );
         return response.data;
+    },
+
+    // NEW: Partial Sale Endpoint
+    recordPartialSale: async (
+        batchId: number, 
+        data: PartialSaleRequestDto
+    ): Promise<void> => {
+        await apiClient.patch(`/batches/${batchId}/partial-sale`, data);
     },
 };

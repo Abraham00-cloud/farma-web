@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { batchService } from '../../services/batchService';
 import type { SectionResponseDto } from '../../types/infrastructure';
 import type { BatchResponseDto } from '../../types/batch';
 
 interface SectionDetailViewProps {
     section: SectionResponseDto;
-    onBack: () => void;
-    onSelectBatch: (batch: BatchResponseDto) => void;
     onStockSection: () => void;
 }
 
 export const SectionDetailView: React.FC<SectionDetailViewProps> = ({
     section,
-    onBack,
-    onSelectBatch,
     onStockSection,
 }) => {
+    const navigate = useNavigate();
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
@@ -24,7 +22,6 @@ export const SectionDetailView: React.FC<SectionDetailViewProps> = ({
 
         const fetchSectionBatches = async () => {
             try {
-                // Query directly by section ID
                 const sectionBatches = await batchService.getBatchesBySection(section.id);
                 if (isMounted) {
                     setBatches(sectionBatches);
@@ -49,180 +46,223 @@ export const SectionDetailView: React.FC<SectionDetailViewProps> = ({
     const pastBatches = batches.filter((b) => b.status === 'COMPLETED');
 
     return (
-        <div className="space-y-6">
-            {/* Top Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+        <div className="space-y-8 font-sans max-w-7xl mx-auto pb-16">
+            
+            {/* Navigation Header & Quick Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
                 <button
                     type="button"
-                    onClick={onBack}
-                    className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center space-x-1 cursor-pointer"
+                    onClick={() => navigate('..', { relative: 'path' })}
+                    className="text-xs font-bold text-[#101B14]/70 hover:text-[#101B14] flex items-center space-x-2 cursor-pointer transition-colors w-fit"
                 >
-                    <span>← Back to All Containment Fleet</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>Back to All Farms and Pens</span>
                 </button>
 
                 {!activeBatch && (
                     <button
                         type="button"
                         onClick={onStockSection}
-                        className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider shadow-xs transition cursor-pointer"
+                        className="px-6 py-3 rounded-lg bg-[#D9A63E] hover:bg-[#c99834] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 cursor-pointer"
                     >
-                        + Stock New Flock Batch
+                        <span>+ Stock New Birds</span>
                     </button>
                 )}
             </div>
 
-            {/* Section Spec Banner */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Main Pen Overview Banner */}
+            <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-6 sm:p-8 shadow-xs relative overflow-hidden space-y-6">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                     <div>
-                        <div className="flex items-center space-x-3">
-                            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+                            <h2 className="text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
                                 {section.name}
                             </h2>
                             <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${activeBatch
-                                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    }`}
+                                className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${
+                                    activeBatch
+                                        ? 'bg-[#D9A63E]/15 text-[#101B14] border border-[#D9A63E]/30'
+                                        : 'bg-[#3F6B47]/15 text-[#3F6B47] border border-[#3F6B47]/30'
+                                }`}
                             >
-                                {activeBatch ? 'OCCUPIED' : 'UNLOCKED / AVAILABLE'}
+                                {activeBatch ? 'OCCUPIED' : 'READY / AVAILABLE'}
                             </span>
                         </div>
-                        <p className="text-xs text-slate-500 font-mono mt-1">
-                            Category: {section.animalCategory} • Focus: {section.productionType} • Section ID: #{section.id}
+                        <p className="text-xs text-[#101B14]/60 font-mono mt-2 flex items-center gap-2 flex-wrap">
+                            <span>Animal Type: <strong className="text-[#101B14]">{section.animalCategory}</strong></span>
+                            <span>•</span>
+                            <span>Purpose: <strong className="text-[#101B14]">{section.productionType}</strong></span>
+                            <span>•</span>
+                            <span>Pen ID: <strong className="text-[#101B14]">#{section.id}</strong></span>
                         </p>
                     </div>
 
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-right">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">
-                            Holding Capacity
+                    <div className="bg-white p-4 rounded-lg border border-[#101B14]/10 text-left md:text-right shadow-xs shrink-0">
+                        <span className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest block mb-1">
+                            Maximum Bird Capacity
                         </span>
-                        <span className="text-xl font-extrabold text-slate-900">
-                            {section.capacity.toLocaleString()} Animals
+                        <span className="text-2xl font-extrabold font-mono text-[#101B14]">
+                            {section.capacity.toLocaleString()} <span className="text-xs font-sans font-bold text-[#101B14]/60 uppercase">Birds</span>
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Currently Active Cohort Card */}
-            <div className="space-y-3">
-                <h3 className="text-lg font-bold text-slate-900">Active Flock Cohort</h3>
+            {/* Currently Active Flock Card */}
+            <div className="space-y-4">
+                <h3 className="text-xl font-bold text-[#101B14] font-['Fraunces',serif]">
+                    Active Flock
+                </h3>
 
                 {activeBatch ? (
                     <div
-                        onClick={() => onSelectBatch(activeBatch)}
-                        className="bg-white border-2 border-emerald-600 rounded-2xl p-5 shadow-sm hover:shadow-md transition cursor-pointer space-y-4 group"
+                        onClick={() => navigate(`batches/${activeBatch.id}`)}
+                        className="bg-[#FBF9F5] border-2 border-[#3F6B47] rounded-xl p-6 shadow-sm hover:shadow-md transition-all cursor-pointer space-y-5 group"
                     >
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
-                                <span className="text-[10px] font-mono font-bold text-emerald-600 uppercase">
+                                <span className="text-[10px] font-mono font-bold text-[#3F6B47] uppercase tracking-widest block mb-1">
                                     ACTIVE BATCH #{activeBatch.id}
                                 </span>
-                                <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition">
+                                <h4 className="text-xl font-extrabold text-[#101B14] group-hover:text-[#3F6B47] transition-colors">
                                     {activeBatch.batchNumber}
                                 </h4>
                             </div>
-                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg">
-                                View Deep Dossier →
-                            </span>
+                            <button
+                                type="button"
+                                className="px-5 py-2.5 rounded-lg bg-[#3F6B47] text-white text-xs font-bold uppercase tracking-wider group-hover:bg-[#2d4f34] transition-colors shadow-xs w-fit"
+                            >
+                                View Flock Details →
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 font-mono text-xs">
-                            <div>
-                                <span className="text-slate-400 text-[10px] block uppercase">Live Population</span>
-                                <span className="font-bold text-slate-900 text-sm">
-                                    {activeBatch.currentCount.toLocaleString()} / {activeBatch.initialCount.toLocaleString()}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#101B14]/10 font-mono text-xs">
+                            <div className="bg-white p-3.5 rounded-lg border border-[#101B14]/10">
+                                <span className="text-[#101B14]/50 text-[10px] block font-bold uppercase tracking-wider mb-1">Current Population</span>
+                                <span className="font-extrabold text-[#101B14] text-base">
+                                    {activeBatch.currentCount.toLocaleString()} <span className="text-[10px] font-sans font-normal text-[#101B14]/50">/ {activeBatch.initialCount.toLocaleString()}</span>
                                 </span>
                             </div>
-                            <div>
-                                <span className="text-slate-400 text-[10px] block uppercase">Mortalities Logged</span>
-                                <span className="font-bold text-rose-600 text-sm">
-                                    {activeBatch.mortalityCount} Head
+                            <div className="bg-white p-3.5 rounded-lg border border-[#101B14]/10">
+                                <span className="text-[#101B14]/50 text-[10px] block font-bold uppercase tracking-wider mb-1">Total Mortality</span>
+                                <span className="font-extrabold text-[#E76F51] text-base">
+                                    {activeBatch.mortalityCount} Birds
                                 </span>
                             </div>
-                            <div>
-                                <span className="text-slate-400 text-[10px] block uppercase">Placed Date</span>
-                                <span className="font-bold text-slate-800">{activeBatch.startDate}</span>
+                            <div className="bg-white p-3.5 rounded-lg border border-[#101B14]/10">
+                                <span className="text-[#101B14]/50 text-[10px] block font-bold uppercase tracking-wider mb-1">Placement Date</span>
+                                <span className="font-bold text-[#101B14]">{activeBatch.startDate}</span>
                             </div>
-                            <div>
-                                <span className="text-slate-400 text-[10px] block uppercase">Expected Harvest</span>
-                                <span className="font-bold text-slate-800">{activeBatch.expectedEndDate}</span>
+                            <div className="bg-white p-3.5 rounded-lg border border-[#101B14]/10">
+                                <span className="text-[#101B14]/50 text-[10px] block font-bold uppercase tracking-wider mb-1">Expected Harvest</span>
+                                <span className="font-bold text-[#101B14]">{activeBatch.expectedEndDate}</span>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-8 text-center space-y-3">
-                        <p className="text-xs font-mono text-slate-500">
-                            This pen is currently empty and sanitized. Ready for a new flock placement.
-                        </p>
+                    <div className="bg-[#FBF9F5] border border-[#101B14]/15 border-dashed rounded-xl p-10 text-center space-y-4 shadow-xs">
+                        <div className="w-16 h-16 rounded-full bg-[#ECE6D6] flex items-center justify-center text-[#101B14]/30 mx-auto">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-bold text-[#101B14]">No Active Flock in This Pen</h4>
+                            <p className="text-xs text-[#101B14]/60 font-medium max-w-sm mx-auto mt-1">
+                                This pen is currently empty and clean. You can stock a new flock batch whenever you are ready.
+                            </p>
+                        </div>
                         <button
                             type="button"
                             onClick={onStockSection}
-                            className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider shadow-xs transition cursor-pointer"
+                            className="px-6 py-3 rounded-lg bg-[#D9A63E] hover:bg-[#c99834] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer inline-flex items-center space-x-2"
                         >
-                            + Stock New Flock Batch
+                            <span>+ Stock New Birds</span>
                         </button>
                     </div>
                 )}
             </div>
 
-            {/* Historical Batch Cycles Ledger */}
-            <div className="space-y-3">
-                <h3 className="text-lg font-bold text-slate-900">Historical Cycles Ledger</h3>
+            {/* Historical Batches Ledger */}
+            <div className="space-y-4">
+                <h3 className="text-xl font-bold text-[#101B14] font-['Fraunces',serif]">
+                    Past Batches
+                </h3>
 
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                    <table className="w-full text-left text-xs font-sans text-slate-700">
-                        <thead className="bg-slate-50 text-slate-500 font-mono uppercase text-[10px] tracking-wider border-b border-slate-200">
-                            <tr>
-                                <th className="px-5 py-3.5">Batch Code</th>
-                                <th className="px-5 py-3.5">Placed</th>
-                                <th className="px-5 py-3.5">Harvested</th>
-                                <th className="px-5 py-3.5">Initial Stock</th>
-                                <th className="px-5 py-3.5">Casualties</th>
-                                <th className="px-5 py-3.5">Status</th>
-                                <th className="px-5 py-3.5 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-mono">
-                            {loading ? (
+                <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl overflow-hidden shadow-xs">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-[#101B14] min-w-[800px]">
+                            {/* Table Header using Darker Cream Tone */}
+                            <thead className="bg-[#DFD8C4] border-b-2 border-[#101B14]/15 text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/80 shadow-xs">
                                 <tr>
-                                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
-                                        Loading section history...
-                                    </td>
+                                    <th className="px-6 py-5 whitespace-nowrap">Batch Number</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Placement Date</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Harvest Date</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Initial Stock</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Mortality</th>
+                                    <th className="px-6 py-5 whitespace-nowrap">Status</th>
+                                    <th className="px-6 py-5 whitespace-nowrap text-right">Action</th>
                                 </tr>
-                            ) : pastBatches.length > 0 ? (
-                                pastBatches.map((b) => (
-                                    <tr key={b.id} className="hover:bg-slate-50/80 transition">
-                                        <td className="px-5 py-4 font-bold text-slate-900">{b.batchNumber}</td>
-                                        <td className="px-5 py-4">{b.startDate}</td>
-                                        <td className="px-5 py-4">{b.actualEndDate || b.expectedEndDate}</td>
-                                        <td className="px-5 py-4 font-bold">{b.initialCount.toLocaleString()}</td>
-                                        <td className="px-5 py-4 text-rose-600 font-bold">{b.mortalityCount}</td>
-                                        <td className="px-5 py-4">
-                                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px]">
-                                                COMPLETED
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-4 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => onSelectBatch(b)}
-                                                className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
-                                            >
-                                                View Dossier →
-                                            </button>
+                            </thead>
+                            <tbody className="divide-y divide-[#101B14]/10 bg-[#FBF9F5] font-mono text-xs">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-12 text-center text-[#101B14]/50">
+                                            Loading past flock history...
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
-                                        No completed historical cycles recorded for this pen yet.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                ) : pastBatches.length > 0 ? (
+                                    pastBatches.map((b) => (
+                                        <tr 
+                                            key={b.id} 
+                                            onClick={() => navigate(`batches/${b.id}`)}
+                                            className="group hover:bg-[#ECE6D6] hover:border-l-4 hover:border-l-[#3F6B47] transition-all cursor-pointer"
+                                        >
+                                            <td className="px-6 py-5 font-bold text-[#101B14] text-sm group-hover:text-[#3F6B47] transition-colors">
+                                                {b.batchNumber}
+                                            </td>
+                                            <td className="px-6 py-5 font-medium">{b.startDate}</td>
+                                            <td className="px-6 py-5 font-medium">{b.actualEndDate || b.expectedEndDate}</td>
+                                            <td className="px-6 py-5 font-bold">{b.initialCount.toLocaleString()}</td>
+                                            <td className="px-6 py-5 text-[#E76F51] font-bold">{b.mortalityCount}</td>
+                                            <td className="px-6 py-5">
+                                                <span className="px-3 py-1 rounded-full bg-[#101B14]/5 text-[#101B14]/70 text-[10px] font-bold uppercase border border-[#101B14]/10">
+                                                    COMPLETED
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5 text-right font-sans">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`batches/${b.id}`);
+                                                    }}
+                                                    className="px-4 py-2 rounded-lg bg-white border border-[#101B14]/15 text-[#101B14] text-xs font-bold uppercase tracking-wider group-hover:bg-[#3F6B47] group-hover:text-white group-hover:border-[#3F6B47] shadow-xs transition-all duration-300"
+                                                >
+                                                    View Details →
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-16 text-center bg-[#FBF9F5]">
+                                            <div className="flex flex-col items-center justify-center space-y-2">
+                                                <svg className="w-10 h-10 text-[#101B14]/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className="text-[#101B14]/60 font-bold text-sm font-sans">
+                                                    No past completed batches recorded for this pen yet.
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

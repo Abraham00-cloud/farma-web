@@ -26,4 +26,15 @@ export const dailyLogService = {
         );
         return response.data;
     },
+
+    // PUT /api/v1/daily-logs/{logId} (ADDED)
+    updateLog: async (logId: number, data: DailyLogRequestDto): Promise<DailyLogResponseDto> => {
+        const response = await apiClient.put<DailyLogResponseDto>(`/daily-logs/${logId}`, data);
+        return response.data;
+    },
+
+    // DELETE /api/v1/daily-logs/{logId} (ADDED)
+    deleteLog: async (logId: number): Promise<void> => {
+        await apiClient.delete(`/daily-logs/${logId}`);
+    }
 };

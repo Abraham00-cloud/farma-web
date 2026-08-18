@@ -20,4 +20,12 @@ export const userService = {
         );
         return response.data;
     },
+
+    // 3. Deactivates (soft deletes) a user account
+    deactivateUser: async (userId: number): Promise<{ message: string }> => {
+        const response = await apiClient.delete<{ message: string }>(
+            `/users/${userId}`
+        );
+        return response.data;
+    },
 };

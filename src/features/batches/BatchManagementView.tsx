@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom'; // <-- Added Router imports
 import axios from 'axios';
 import { infrastructureService } from '../../services/infrastructureService';
 import { batchService } from '../../services/batchService';
@@ -27,15 +28,13 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
     currentUserId,
 }) => {
     const isProprietor = userRole?.toUpperCase() === 'PROPRIETOR' || userRole?.toUpperCase() === 'ADMIN';
+    const navigate = useNavigate(); // <-- Initialize Navigation
 
     const [farmBatchGroups, setFarmBatchGroups] = useState<FarmBatchGroup[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'ALL' | Status>('ACTIVE');
-
-    // Deep View State
-    const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
     // Modals
     const [selectedBatchForMortality, setSelectedBatchForMortality] = useState<BatchResponseDto | null>(null);
@@ -53,7 +52,6 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
         try {
             let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
 
-            // 🔒 ROLE SCOPING: Filter farms if user is a Manager
             if (!isProprietor && currentUserId) {
                 farmList = farmList.filter((farm) => farm.managerId === currentUserId);
             }
@@ -94,7 +92,6 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
             try {
                 let farmList = await infrastructureService.getFarmsByOrganisation(organisationId);
 
-                // 🔒 ROLE SCOPING: Filter farms if user is a Manager
                 if (!isProprietor && currentUserId) {
                     farmList = farmList.filter((farm) => farm.managerId === currentUserId);
                 }
@@ -138,18 +135,6 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
             isMounted = false;
         };
     }, [organisationId, isProprietor, currentUserId]);
-
-    if (selectedBatchId !== null) {
-        return (
-            <BatchDetailView
-                batchId={selectedBatchId}
-                onBack={() => {
-                    setSelectedBatchId(null);
-                    loadBatches();
-                }}
-            />
-        );
-    }
 
     const allFlatBatches = farmBatchGroups.flatMap((g) => g.batches);
     const activeBatches = allFlatBatches.filter((b) => b.status === Status.ACTIVE);
@@ -212,375 +197,437 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
             await loadBatches();
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
-                setErrorMessage(err.response?.data?.message || 'Failed to finalize batch harvest.');
+                setErrorMessage(err.response?.data?.message || 'Failed to finalize harvest.');
             }
         } finally {
             setSubmitting(false);
         }
     };
 
+    // PROPER ROUTING RENDER BLOCK
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-                <div>
-                    <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        {isProprietor ? 'Flock & Lifecycle Command Center' : 'My Site Flock Batches'}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        Active and historical livestock cohorts physically classified by farm facility and housing pen.
-                    </p>
-                </div>
+        <Routes>
+            {/* 1. The Main List Route */}
+            <Route index element={
+                <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-12">
+                    {/* Header Section */}
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b-2 border-[#101B14]/10 pb-6">
+                        <div>
+                            <h3 className="text-3xl md:text-4xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
+                                {isProprietor ? 'All Flock Batches' : 'My Farm Flocks'}
+                            </h3>
+                            <p className="text-sm text-[#101B14]/70 font-medium mt-2 max-w-xl leading-relaxed">
+                                Active and past flock batches across your farm pens. Monitor bird counts, log mortalities, and harvest ready flocks.
+                            </p>
+                        </div>
 
-                {/* Filter Pills */}
-                <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                    {(['ACTIVE', 'COMPLETED', 'ALL'] as const).map((st) => (
-                        <button
-                            key={st}
-                            type="button"
-                            onClick={() => setStatusFilter(st)}
-                            className={`px-3.5 py-1.5 rounded-lg transition cursor-pointer ${statusFilter === st
-                                    ? 'bg-white text-slate-900 shadow-xs font-bold'
-                                    : 'text-slate-500 hover:text-slate-900'
-                                }`}
-                        >
-                            {st}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Aggregate Quick Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                        Active Cohorts
-                    </span>
-                    <div className="text-2xl font-extrabold text-slate-900 mt-1">
-                        {activeBatches.length} Batches
+                        {/* Filter Pills */}
+                        <div className="flex bg-[#FBF9F5] p-1.5 rounded-lg border border-[#101B14]/10 shadow-xs text-xs font-bold uppercase tracking-wider">
+                            {(['ACTIVE', 'COMPLETED', 'ALL'] as const).map((st) => (
+                                <button
+                                    key={st}
+                                    type="button"
+                                    onClick={() => setStatusFilter(st)}
+                                    className={`px-5 py-2.5 rounded-md transition-all cursor-pointer ${
+                                        statusFilter === st
+                                            ? 'bg-[#101B14] text-[#FBF9F5] shadow-md transform scale-[1.02]'
+                                            : 'text-[#101B14]/60 hover:text-[#101B14] hover:bg-[#101B14]/5'
+                                    }`}
+                                >
+                                    {st}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                        Live Inventory Population
-                    </span>
-                    <div className="text-2xl font-extrabold text-emerald-700 mt-1">
-                        {totalLivePopulation.toLocaleString()} Heads
-                    </div>
-                </div>
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                    <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                        Cumulative Mortality Logged
-                    </span>
-                    <div className="text-2xl font-extrabold text-rose-600 mt-1">
-                        {totalMortality.toLocaleString()} Casualties
-                    </div>
-                </div>
-            </div>
 
-            {/* Farm-Classified Batches */}
-            {loading ? (
-                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    Loading farm production cohorts...
-                </div>
-            ) : farmBatchGroups.length > 0 ? (
-                farmBatchGroups.map(({ farm, batches }) => {
-                    const filteredBatches = statusFilter === 'ALL'
-                        ? batches
-                        : batches.filter((b) => b.status === statusFilter);
+                    {/* Aggregate Metrics */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-6 shadow-xs flex flex-col justify-center">
+                            <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest mb-1">
+                                Active Batches
+                            </span>
+                            <div className="text-3xl font-extrabold text-[#101B14] font-mono">
+                                {activeBatches.length}
+                            </div>
+                        </div>
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-6 shadow-xs flex flex-col justify-center">
+                            <span className="text-[10px] font-mono font-bold text-[#3F6B47] uppercase tracking-widest mb-1">
+                                Total Live Birds
+                            </span>
+                            <div className="text-3xl font-extrabold text-[#101B14] font-mono">
+                                {totalLivePopulation.toLocaleString()}
+                            </div>
+                        </div>
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-6 shadow-xs flex flex-col justify-center">
+                            <span className="text-[10px] font-mono font-bold text-[#E76F51] uppercase tracking-widest mb-1">
+                                Total Mortality Logged
+                            </span>
+                            <div className="text-3xl font-extrabold text-[#101B14] font-mono">
+                                {totalMortality.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
 
-                    return (
-                        <div
-                            key={farm.id}
-                            className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs space-y-0"
-                        >
-                            {/* Farm Facility Card Header */}
-                            <div className="bg-slate-900 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-white">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center font-bold text-sm">
-                                        🌾
+                    {/* Farm-Classified Batches */}
+                    {loading ? (
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-24 text-center shadow-xs flex flex-col items-center justify-center">
+                            <div className="w-12 h-12 border-4 border-[#3F6B47]/20 border-t-[#3F6B47] rounded-full animate-spin mb-6"></div>
+                            <span className="text-[#101B14]/60 text-sm font-bold font-mono uppercase tracking-widest">
+                                Loading flock data...
+                            </span>
+                        </div>
+                    ) : farmBatchGroups.length > 0 ? (
+                        farmBatchGroups.map(({ farm, batches }) => {
+                            const filteredBatches = statusFilter === 'ALL'
+                                ? batches
+                                : batches.filter((b) => b.status === statusFilter);
+
+                            if (filteredBatches.length === 0) return null;
+
+                            return (
+                                <div
+                                    key={farm.id}
+                                    className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl overflow-hidden shadow-xs space-y-0"
+                                >
+                                    <div className="bg-[#FBF9F5] px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#101B14]/10">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-12 h-12 rounded-lg bg-white border border-[#101B14]/10 flex items-center justify-center shadow-xs text-[#101B14]">
+                                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xl font-extrabold tracking-tight font-['Fraunces',serif] text-[#101B14]">{farm.name}</h4>
+                                                <p className="text-xs font-mono text-[#101B14]/60 tracking-wider mt-1 flex items-center gap-2">
+                                                    <span>📍 {farm.address}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center space-x-3 text-xs font-mono">
+                                            <span className="px-4 py-2 rounded-lg bg-[#3F6B47]/10 text-[#3F6B47] font-bold uppercase tracking-widest border border-[#3F6B47]/20">
+                                                {filteredBatches.length} Batches Here
+                                            </span>
+                                        </div>
                                     </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm text-[#101B14] min-w-[1000px]">
+                                            <thead className="bg-[#DFD8C4] border-b-2 border-[#101B14]/15 text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/80 shadow-xs">
+                                                <tr>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Batch Number</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Pen / House</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Bird Type</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Live Birds</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Mortality</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap">Status</th>
+                                                    <th className="px-6 py-5 whitespace-nowrap text-right">Quick Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-[#101B14]/10 bg-[#FBF9F5] font-mono text-xs">
+                                                {filteredBatches.map((batch) => {
+                                                    const survivalRate = batch.initialCount > 0
+                                                        ? (((batch.initialCount - batch.mortalityCount) / batch.initialCount) * 100).toFixed(1)
+                                                        : '100';
+
+                                                    return (
+                                                        <tr
+                                                            key={batch.id}
+                                                            onClick={() => navigate(String(batch.id))} // <-- PUSHES URL INSTEAD OF SETTING STATE
+                                                            className="group hover:bg-[#ECE6D6] hover:border-l-4 hover:border-l-[#3F6B47] transition-all cursor-pointer"
+                                                        >
+                                                            <td className="px-6 py-5 font-bold text-[#101B14] text-sm group-hover:text-[#3F6B47] transition-colors">
+                                                                <div className="flex flex-col">
+                                                                    <span>{batch.batchNumber}</span>
+                                                                    <span className="text-[10px] text-[#101B14]/50 font-normal uppercase mt-0.5">
+                                                                        Started: {batch.startDate}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="font-bold text-[#101B14] text-sm">
+                                                                    {batch.sectionName}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="px-2 py-1 rounded bg-[#101B14]/5 text-[#101B14]/70 text-[10px] font-bold uppercase tracking-wider border border-[#101B14]/10">
+                                                                    {batch.animalCategory}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span className="font-extrabold text-[#3F6B47] text-base">
+                                                                    {batch.currentCount.toLocaleString()}
+                                                                </span>
+                                                                <span className="text-[#101B14]/50 text-xs ml-1 font-sans">
+                                                                    / {batch.initialCount.toLocaleString()}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-extrabold text-[#E76F51] text-base">
+                                                                        {batch.mortalityCount.toLocaleString()}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-[#101B14]/50 font-sans">
+                                                                        {survivalRate}% survival
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-5">
+                                                                <span
+                                                                    className={`px-3 py-1 rounded-full font-extrabold uppercase tracking-widest text-[10px] border ${batch.status === Status.ACTIVE
+                                                                            ? 'bg-[#3F6B47]/10 text-[#3F6B47] border-[#3F6B47]/20'
+                                                                            : 'bg-[#101B14]/5 text-[#101B14]/60 border-[#101B14]/10'
+                                                                        }`}
+                                                                >
+                                                                    {batch.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-5 text-right font-sans">
+                                                                {batch.status === Status.ACTIVE ? (
+                                                                    <div className="flex items-center justify-end space-x-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => handleOpenMortalityModal(e, batch)}
+                                                                            className="px-3 py-2 rounded-lg bg-white hover:bg-[#E76F51] border border-[#E76F51]/30 text-[#E76F51] hover:text-white font-bold text-[10px] uppercase tracking-wider transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+                                                                        >
+                                                                            Log Mortality
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => handleOpenCloseModal(e, batch)}
+                                                                            className="px-3 py-2 rounded-lg bg-white hover:bg-[#3F6B47] border border-[#101B14]/20 text-[#101B14] hover:text-white hover:border-[#3F6B47] font-bold text-[10px] uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
+                                                                        >
+                                                                            Harvest
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            navigate(String(batch.id)); // <-- PUSHES URL INSTEAD OF SETTING STATE
+                                                                        }}
+                                                                        className="px-4 py-2 rounded-lg bg-white border border-[#101B14]/15 text-[#101B14] text-xs font-bold uppercase tracking-wider group-hover:bg-[#3F6B47] group-hover:text-white group-hover:border-[#3F6B47] shadow-xs transition-all duration-300 cursor-pointer"
+                                                                    >
+                                                                        View Record →
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-20 text-center flex flex-col items-center justify-center shadow-xs">
+                            <div className="w-20 h-20 rounded-full bg-[#ECE6D6] flex items-center justify-center text-[#101B14]/30 mb-5 shadow-inner">
+                                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] mb-2">
+                                No Batches Found
+                            </h3>
+                            <p className="text-sm text-[#101B14]/60 font-medium max-w-sm leading-relaxed">
+                                {isProprietor ? 'You have no batches matching this filter.' : 'No batches found for your assigned farm.'}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Modals for List View */}
+                    {selectedBatchForMortality && (
+                        <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                            <div className="bg-[#FBF9F5] border border-[#E76F51]/40 rounded-xl max-w-sm w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                                <div className="h-2 w-full bg-[#E76F51] relative shrink-0 shadow-sm"></div>
+                                <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
                                     <div>
-                                        <h4 className="text-base font-extrabold tracking-tight">{farm.name}</h4>
-                                        <p className="text-[10px] font-mono text-slate-400">
-                                            📍 {farm.address} • GPS: [{farm.latitude.toFixed(3)}, {farm.longitude.toFixed(3)}]
+                                        <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Log Mortality</h4>
+                                        <p className="text-[10px] font-mono font-bold text-[#E76F51] uppercase tracking-widest mt-1.5">
+                                            Batch: {selectedBatchForMortality.batchNumber}
                                         </p>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedBatchForMortality(null)}
+                                        className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
-
-                                <div className="flex items-center space-x-3 text-xs font-mono">
-                                    <span className="px-2.5 py-1 rounded-md bg-slate-800 text-slate-300 font-bold border border-slate-700">
-                                        {filteredBatches.length} Cohorts
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Batches Table for this Farm */}
-                            <table className="w-full text-left text-xs font-sans text-slate-700">
-                                <thead className="bg-slate-50 text-slate-500 font-mono uppercase text-[10px] tracking-wider border-b border-slate-200">
-                                    <tr>
-                                        <th className="px-6 py-3.5">Batch Code</th>
-                                        <th className="px-6 py-3.5">Housing Pen / Section</th>
-                                        <th className="px-6 py-3.5">Category / Type</th>
-                                        <th className="px-6 py-3.5">Live Population</th>
-                                        <th className="px-6 py-3.5">Mortality</th>
-                                        <th className="px-6 py-3.5">Status</th>
-                                        <th className="px-6 py-3.5 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 font-mono">
-                                    {filteredBatches.length > 0 ? (
-                                        filteredBatches.map((batch) => {
-                                            const survivalRate = batch.initialCount > 0
-                                                ? (((batch.initialCount - batch.mortalityCount) / batch.initialCount) * 100).toFixed(1)
-                                                : '100';
-
-                                            return (
-                                                <tr
-                                                    key={batch.id}
-                                                    onClick={() => setSelectedBatchId(batch.id)}
-                                                    className="hover:bg-slate-50/80 transition cursor-pointer group"
-                                                >
-                                                    <td className="px-6 py-4 font-bold text-slate-900 group-hover:text-[#C2410C]">
-                                                        <div>{batch.batchNumber} →</div>
-                                                        <span className="text-[10px] text-slate-400 font-normal">
-                                                            Started: {batch.startDate}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[10px]">
-                                                            🛖 {batch.sectionName}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">
-                                                            {batch.animalCategory} ({batch.productionType})
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 font-bold text-emerald-700">
-                                                        {batch.currentCount.toLocaleString()} / {batch.initialCount.toLocaleString()}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className="font-bold text-rose-600">
-                                                            {batch.mortalityCount.toLocaleString()}
-                                                        </span>
-                                                        <span className="text-[10px] text-slate-400 block">
-                                                            ({survivalRate}% survival)
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span
-                                                            className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${batch.status === Status.ACTIVE
-                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                                                }`}
-                                                        >
-                                                            {batch.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right space-x-2">
-                                                        {batch.status === Status.ACTIVE && (
-                                                            <>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => handleOpenMortalityModal(e, batch)}
-                                                                    className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[10px] transition cursor-pointer"
-                                                                >
-                                                                    💀 Log Casualty
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => handleOpenCloseModal(e, batch)}
-                                                                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] transition cursor-pointer"
-                                                                >
-                                                                    🌾 Harvest & Close
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                                                No production batches recorded under {farm.name} matching this filter.
-                                            </td>
-                                        </tr>
+                                <div className="p-6 bg-white">
+                                    {errorMessage && (
+                                        <div className="mb-6 p-4 rounded-lg bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-sm font-bold flex items-start space-x-3 shadow-sm">
+                                            <span className="leading-relaxed">{errorMessage}</span>
+                                        </div>
                                     )}
-                                </tbody>
-                            </table>
-                        </div>
-                    );
-                })
-            ) : (
-                <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs font-mono text-slate-400">
-                    {isProprietor ? 'No farm facilities or cohorts found.' : 'No production batches found for your assigned farm.'}
-                </div>
-            )}
-
-            {/* Log Mortality Modal */}
-            {selectedBatchForMortality && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-                    <div className="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div>
-                                <h4 className="text-base font-bold text-slate-900">Log Casualty / Mortality</h4>
-                                <p className="text-xs text-slate-500">Batch: {selectedBatchForMortality.batchNumber}</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedBatchForMortality(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {errorMessage && (
-                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono">
-                                🚨 {errorMessage}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleLogMortality} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Recorded Casualty Count *
-                                </label>
-                                <input
-                                    type="number"
-                                    required
-                                    min={1}
-                                    max={selectedBatchForMortality.currentCount}
-                                    value={mortalityCount}
-                                    onChange={(e) => setMortalityCount(Number(e.target.value))}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white font-mono"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedBatchForMortality(null)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase cursor-pointer disabled:opacity-50"
-                                >
-                                    {submitting ? 'Updating...' : 'Record Mortality'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Close Batch / Harvest Modal */}
-            {selectedBatchForClose && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-                    <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div>
-                                <h4 className="text-base font-bold text-slate-900">Harvest & Close Batch</h4>
-                                <p className="text-xs text-slate-500">Releases {selectedBatchForClose.sectionName} for sanitization</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedBatchForClose(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-sm cursor-pointer"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {errorMessage && (
-                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono">
-                                🚨 {errorMessage}
-                            </div>
-                        )}
-
-                        <form onSubmit={handleCloseBatch} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Actual Harvest End Date *
-                                </label>
-                                <input
-                                    type="date"
-                                    required
-                                    value={closeForm.actualEndDate}
-                                    onChange={(e) => setCloseForm({ ...closeForm, actualEndDate: e.target.value })}
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Total Birds/Livestock Sold *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        required
-                                        min={0}
-                                        value={closeForm.totalBirdsSold}
-                                        onChange={(e) => setCloseForm({ ...closeForm, totalBirdsSold: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white font-mono"
-                                    />
+                                    <form id="mortality-form" onSubmit={handleLogMortality} className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                                Number of Birds Lost *
+                                            </label>
+                                            <input
+                                                type="number"
+                                                required
+                                                min={1}
+                                                max={selectedBatchForMortality.currentCount}
+                                                value={mortalityCount}
+                                                onChange={(e) => setMortalityCount(Number(e.target.value))}
+                                                className="w-full px-5 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-lg font-extrabold focus:outline-none focus:border-[#E76F51] focus:ring-2 focus:ring-[#E76F51]/30 transition-all shadow-sm font-mono"
+                                            />
+                                        </div>
+                                    </form>
                                 </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                                        Total Sale Revenue (₦) *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        required
-                                        min={1}
-                                        value={closeForm.totalSaleRevenue}
-                                        onChange={(e) => setCloseForm({ ...closeForm, totalSaleRevenue: Number(e.target.value) })}
-                                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white font-mono"
-                                    />
+                                <div className="p-5 bg-[#F5F1E6] border-t border-[#101B14]/10 shrink-0 flex items-center justify-end gap-3 z-10">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedBatchForMortality(null)}
+                                        className="px-5 py-3 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        form="mortality-form"
+                                        disabled={submitting}
+                                        className="px-6 py-3 rounded-lg bg-[#E76F51] hover:bg-[#d45e41] text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                    >
+                                        {submitting ? 'Recording...' : 'Record Mortality'}
+                                    </button>
                                 </div>
                             </div>
+                        </div>
+                    )}
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1">
-                                    Harvest Notes (Optional)
-                                </label>
-                                <textarea
-                                    rows={2}
-                                    value={closeForm.harvestNotes}
-                                    onChange={(e) => setCloseForm({ ...closeForm, harvestNotes: e.target.value })}
-                                    placeholder="e.g. Sold to Grand Oak Processing Plant at ₦2,500/bird average."
-                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white"
-                                />
+                    {selectedBatchForClose && (
+                        <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                            <div className="bg-[#FBF9F5] border border-[#3F6B47]/40 rounded-xl max-w-md w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                                <div className="h-2 w-full bg-[#3F6B47] relative shrink-0 shadow-sm"></div>
+                                <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                                    <div>
+                                        <h4 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Harvest Batch</h4>
+                                        <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-1.5">
+                                            Closes batch & frees {selectedBatchForClose.sectionName}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedBatchForClose(null)}
+                                        className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                                    {errorMessage && (
+                                        <div className="mb-6 p-4 rounded-lg bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-sm font-bold flex items-start space-x-3 shadow-sm">
+                                            <span className="leading-relaxed">{errorMessage}</span>
+                                        </div>
+                                    )}
+                                    <form id="harvest-form" onSubmit={handleCloseBatch} className="space-y-5">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                                Harvest Date *
+                                            </label>
+                                            <input
+                                                type="date"
+                                                required
+                                                value={closeForm.actualEndDate}
+                                                onChange={(e) => setCloseForm({ ...closeForm, actualEndDate: e.target.value })}
+                                                className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                                    Birds Sold *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    required
+                                                    min={0}
+                                                    value={closeForm.totalBirdsSold}
+                                                    onChange={(e) => setCloseForm({ ...closeForm, totalBirdsSold: Number(e.target.value) })}
+                                                    className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm font-mono"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                                    Total Revenue (₦) *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    required
+                                                    min={1}
+                                                    value={closeForm.totalSaleRevenue}
+                                                    onChange={(e) => setCloseForm({ ...closeForm, totalSaleRevenue: Number(e.target.value) })}
+                                                    className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#101B14]/70 mb-2">
+                                                Harvest Notes (Optional)
+                                            </label>
+                                            <textarea
+                                                rows={2}
+                                                value={closeForm.harvestNotes}
+                                                onChange={(e) => setCloseForm({ ...closeForm, harvestNotes: e.target.value })}
+                                                placeholder="e.g. Sold to processing plant"
+                                                className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm focus:outline-none focus:border-[#3F6B47] focus:ring-2 focus:ring-[#3F6B47]/30 transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    </form>
+                                </div>
+                                <div className="p-5 bg-[#F5F1E6] border-t border-[#101B14]/10 shrink-0 flex items-center justify-end gap-3 z-10">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedBatchForClose(null)}
+                                        className="px-5 py-3 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        form="harvest-form"
+                                        disabled={submitting}
+                                        className="px-6 py-3 rounded-lg bg-[#101B14] hover:bg-[#3F6B47] text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                    >
+                                        {submitting ? 'Finalizing...' : 'Finalize Harvest'}
+                                    </button>
+                                </div>
                             </div>
-
-                            <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedBatchForClose(null)}
-                                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase cursor-pointer disabled:opacity-50"
-                                >
-                                    {submitting ? 'Finalizing...' : 'Finalize & Unlock Section'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
+            } />
+            
+            {/* 2. The Detail Route */}
+            <Route path=":batchId" element={<BatchDetailWrapper refreshList={loadBatches} />} />
+        </Routes>
+    );
+};
+
+// --- WRAPPER COMPONENT ---
+// This reads the URL parameter and passes it to your unmodified Detail View.
+const BatchDetailWrapper: React.FC<{ refreshList: () => void }> = ({ refreshList }) => {
+    const { batchId } = useParams();
+    const navigate = useNavigate();
+
+    return (
+        <BatchDetailView 
+            batchId={Number(batchId)} 
+            onBack={() => {
+                refreshList(); 
+                navigate('..', { relative: 'path' }); // Cleanly pops back to the list
+            }} 
+        />
     );
 };
