@@ -111,10 +111,8 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
             mortalityCount: Number(logForm.mortalityCount || 0),
             feedQuantityUsed: logForm.feedQuantityUsed ? Number(logForm.feedQuantityUsed) : undefined,
             medicineQuantityUsed: logForm.medicineQuantityUsed ? Number(logForm.medicineQuantityUsed) : undefined,
-            // STRICT TYPING FIX: Use explicit ternary operator instead of optional chaining for strings
             administrationMethod: logForm.administrationMethod ? logForm.administrationMethod.trim() : undefined,
             averageWeight: logForm.averageWeight ? Number(logForm.averageWeight) : undefined,
-            // STRICT TYPING FIX: Use explicit ternary operator instead of optional chaining for strings
             observations: logForm.observations ? logForm.observations.trim() : undefined,
         };
 
@@ -163,7 +161,6 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                     actualEndDate: harvestForm.saleDate,
                     totalBirdsSold: Number(harvestForm.birdsSold),
                     totalSaleRevenue: Number(harvestForm.saleRevenue),
-                    // STRICT TYPING FIX: Use explicit ternary
                     harvestNotes: harvestForm.notes ? harvestForm.notes.trim() : undefined,
                 });
                 setSuccessMessage("Batch officially closed and harvest finalized!");
@@ -173,7 +170,6 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                     saleDate: harvestForm.saleDate,
                     birdsSold: Number(harvestForm.birdsSold),
                     saleRevenue: Number(harvestForm.saleRevenue),
-                    // STRICT TYPING FIX: Use explicit ternary
                     notes: harvestForm.notes ? harvestForm.notes.trim() : undefined,
                 });
                 setSuccessMessage("Partial sale recorded successfully! Batch remains active.");
@@ -406,7 +402,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                             <td className="px-6 py-5 text-[#3F6B47] font-bold">
                                                 {log.recordedByName}
                                             </td>
-                                            <td className="px-6 py-5 text-[#101B14]/60 font-sans max-w-xs truncate" title={log.observations}>
+                                            <td className="px-6 py-5 text-[#101B14]/60 font-sans max-w-xs truncate" title={log.observations || undefined}>
                                                 {log.observations || '-'}
                                             </td>
                                         </tr>
