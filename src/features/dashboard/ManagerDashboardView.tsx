@@ -9,7 +9,7 @@ import { batchService } from '../../services/batchService';
 import { inventoryService } from '../../services/inventoryService';
 import { transactionService } from '../../services/transactionService';
 import { alertService } from '../../services/alertService';
-import { apiClient } from '../../services/apiClient'; // 🟢 FIX: Imported for the manual fallback aggregator
+import { apiClient } from '../../services/apiClient';
 import type { AuthResponseDto } from '../../types/auth';
 
 interface ManagerDashboardViewProps {
@@ -37,10 +37,14 @@ interface MonthlyFinancialData {
     expenses?: number;
 }
 
+// 🟢 FIX: Added totalExpense, expense, and income to the blueprint!
 interface FinancialCashFlowDto {
     totalIncome?: number;
     totalRevenue?: number;
+    income?: number;
     totalExpenses?: number;
+    totalExpense?: number;
+    expense?: number;
     netProfit?: number;
     companyValuation?: number;
     valuation?: number;
@@ -134,13 +138,12 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
 
             if (isProprietor) {
                 try {
-                    // Try the official service first
                     if (typeof transactionService.getCompanyCashFlow === 'function') {
                         const cashFlowResponse = await transactionService.getCompanyCashFlow(orgId).catch(() => null);
                         if (cashFlowResponse) {
                             const cashFlow = cashFlowResponse as unknown as FinancialCashFlowDto;
-                            rev = Number(cashFlow?.totalRevenue || cashFlow?.totalIncome || 0);
-                            exp = Number(cashFlow?.totalExpenses || cashFlow?.totalExpense || 0);
+                            rev = Number(cashFlow?.totalRevenue || cashFlow?.totalIncome || cashFlow?.income || 0);
+                            exp = Number(cashFlow?.totalExpenses || cashFlow?.totalExpense || cashFlow?.expense || 0);
                             valuation = Number(cashFlow?.companyValuation || cashFlow?.valuation || 0);
 
                             const rawMonthly = cashFlow?.monthlyBreakdown || cashFlow?.monthlyCashFlows;
@@ -153,11 +156,10 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                             }
                         }
                     }
-                } catch (e) {
+                } catch {
                     console.warn("Company cashflow endpoint failed, attempting farm-level fallback...");
                 }
 
-                // 🟢 THE FIX: If the macro endpoint returned 0, we aggregate manually using the Farm endpoints!
                 if (rev === 0 && exp === 0 && farmIds.length > 0) {
                     try {
                         const finPromises = farmIds.map(id => 
@@ -167,7 +169,6 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                         
                         finResults.forEach(res => {
                             const data = res.data || {};
-                            // Safely add up whatever the farm overview endpoint returns
                             rev += Number(data.totalIncome || data.totalRevenue || data.income || data.revenue || 0);
                             exp += Number(data.totalExpense || data.totalExpenses || data.expense || data.expenses || 0);
                         });
