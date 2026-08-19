@@ -37,7 +37,6 @@ interface MonthlyFinancialData {
     expenses?: number;
 }
 
-// 🟢 FIX: Added totalExpense, expense, and income to the blueprint!
 interface FinancialCashFlowDto {
     totalIncome?: number;
     totalRevenue?: number;
@@ -217,22 +216,20 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                 ]);
             }
 
+            // 🟢 FIX: Dynamic Current Month Calculation!
+            const currentMonth = new Date().toLocaleString('default', { month: 'short' }); // Resolves to "Aug"
+
             if (realMonthlyBreakdown.length > 0) {
                 setCashflowData(realMonthlyBreakdown);
             } else if (rev > 0 || exp > 0) {
+                // If backend provides no array but we aggregated the data, dump all the real money into the actual current month
                 setCashflowData([
-                    { month: 'Jan', Income: Math.round(rev * 0.1), Expense: Math.round(exp * 0.1) },
-                    { month: 'Feb', Income: Math.round(rev * 0.15), Expense: Math.round(exp * 0.12) },
-                    { month: 'Mar', Income: Math.round(rev * 0.2), Expense: Math.round(exp * 0.18) },
-                    { month: 'Apr', Income: Math.round(rev * 0.12), Expense: Math.round(exp * 0.2) },
-                    { month: 'May', Income: Math.round(rev * 0.25), Expense: Math.round(exp * 0.15) },
-                    { month: 'Jun', Income: Math.round(rev * 0.18), Expense: Math.round(exp * 0.25) },
+                    { month: currentMonth, Income: rev, Expense: exp }
                 ]);
             } else {
+                // If the entire farm is broke, just show 0 for the current month
                 setCashflowData([
-                    { month: 'Jan', Income: 0, Expense: 0 },
-                    { month: 'Feb', Income: 0, Expense: 0 },
-                    { month: 'Mar', Income: 0, Expense: 0 },
+                    { month: currentMonth, Income: 0, Expense: 0 }
                 ]);
             }
 
