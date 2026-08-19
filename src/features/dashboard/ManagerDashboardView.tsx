@@ -9,6 +9,7 @@ import { batchService } from '../../services/batchService';
 import { inventoryService } from '../../services/inventoryService';
 import { transactionService } from '../../services/transactionService';
 import { alertService } from '../../services/alertService';
+import { apiClient } from '../../services/apiClient'; // 🟢 FIX: Imported for the manual fallback aggregator
 import type { AuthResponseDto } from '../../types/auth';
 
 interface ManagerDashboardViewProps {
@@ -28,7 +29,6 @@ interface InventoryDataPoint {
     color: string;
 }
 
-// 🟢 FIX 1: Unified type to satisfy TypeScript strict mode mappings
 interface MonthlyFinancialData {
     month: string;
     income?: number;
@@ -37,7 +37,6 @@ interface MonthlyFinancialData {
     expenses?: number;
 }
 
-// Flexible DTO interface matching Spring Boot Financial Response
 interface FinancialCashFlowDto {
     totalIncome?: number;
     totalRevenue?: number;
@@ -135,24 +134,46 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
 
             if (isProprietor) {
                 try {
-                    const cashFlowResponse = await transactionService.getCompanyCashFlow(orgId);
-                    const cashFlow = cashFlowResponse as unknown as FinancialCashFlowDto;
-                    
-                    rev = Number(cashFlow?.totalRevenue || cashFlow?.totalIncome || 0);
-                    exp = Number(cashFlow?.totalExpenses || 0);
-                    valuation = Number(cashFlow?.companyValuation || cashFlow?.valuation || 0);
+                    // Try the official service first
+                    if (typeof transactionService.getCompanyCashFlow === 'function') {
+                        const cashFlowResponse = await transactionService.getCompanyCashFlow(orgId).catch(() => null);
+                        if (cashFlowResponse) {
+                            const cashFlow = cashFlowResponse as unknown as FinancialCashFlowDto;
+                            rev = Number(cashFlow?.totalRevenue || cashFlow?.totalIncome || 0);
+                            exp = Number(cashFlow?.totalExpenses || cashFlow?.totalExpense || 0);
+                            valuation = Number(cashFlow?.companyValuation || cashFlow?.valuation || 0);
 
-                    const rawMonthly = cashFlow?.monthlyBreakdown || cashFlow?.monthlyCashFlows;
-                    if (Array.isArray(rawMonthly) && rawMonthly.length > 0) {
-                        // Using the new explicit interface to silence TypeScript errors
-                        realMonthlyBreakdown = rawMonthly.map((item: MonthlyFinancialData) => ({
-                            month: item.month,
-                            Income: Number(item.income || item.revenue || 0),
-                            Expense: Number(item.expense || item.expenses || 0)
-                        }));
+                            const rawMonthly = cashFlow?.monthlyBreakdown || cashFlow?.monthlyCashFlows;
+                            if (Array.isArray(rawMonthly) && rawMonthly.length > 0) {
+                                realMonthlyBreakdown = rawMonthly.map((item: MonthlyFinancialData) => ({
+                                    month: item.month,
+                                    Income: Number(item.income || item.revenue || 0),
+                                    Expense: Number(item.expense || item.expenses || 0)
+                                }));
+                            }
+                        }
                     }
                 } catch (e) {
-                    console.error("Failed to load company financial metrics:", e);
+                    console.warn("Company cashflow endpoint failed, attempting farm-level fallback...");
+                }
+
+                // 🟢 THE FIX: If the macro endpoint returned 0, we aggregate manually using the Farm endpoints!
+                if (rev === 0 && exp === 0 && farmIds.length > 0) {
+                    try {
+                        const finPromises = farmIds.map(id => 
+                            apiClient.get(`/financials/farm/${id}/overview`).catch(() => ({ data: {} }))
+                        );
+                        const finResults = await Promise.all(finPromises);
+                        
+                        finResults.forEach(res => {
+                            const data = res.data || {};
+                            // Safely add up whatever the farm overview endpoint returns
+                            rev += Number(data.totalIncome || data.totalRevenue || data.income || data.revenue || 0);
+                            exp += Number(data.totalExpense || data.totalExpenses || data.expense || data.expenses || 0);
+                        });
+                    } catch (fallbackErr) {
+                        console.error("Fallback aggregation failed", fallbackErr);
+                    }
                 }
             }
 
@@ -221,7 +242,6 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
         }
     }, [orgId, isProprietor, currentUserId]);
 
-    // 🟢 FIX 2: Push initial load to next tick to avoid "cascading renders" error
     useEffect(() => {
         const timer = setTimeout(() => {
             bootDashboard();
