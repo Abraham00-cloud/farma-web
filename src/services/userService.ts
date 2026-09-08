@@ -28,4 +28,9 @@ export const userService = {
         );
         return response.data;
     },
+
+    getUserById: async (userId: number): Promise<UserResponseDto> => {
+        const response = await apiClient.get<UserResponseDto>(`/users/${userId}`);
+        return response.data;
+    },
 };

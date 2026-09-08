@@ -32,10 +32,8 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
     const [selectedBatchId, setSelectedBatchId] = useState<number | 'ALL'>('ALL');
 
-    // Sub-tab view mode
     const [activeTabMode, setActiveTabMode] = useState<'ANALYTICS' | 'LEDGER'>('ANALYTICS');
 
-    // Analytics Data States
     const [farmOverview, setFarmOverview] = useState<FarmFinancialOverviewDto | null>(null);
     const [batchPnl, setBatchPnl] = useState<BatchFinancialPnlResponseDto | null>(null);
     const [transactions, setTransactions] = useState<TransactionResponseDto[]>([]);
@@ -45,10 +43,8 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Modal Control
     const [showTxModal, setShowTxModal] = useState<boolean>(false);
 
-    // NEW: Export Modal Control
     const [showExportModal, setShowExportModal] = useState<boolean>(false);
     const [exporting, setExporting] = useState<boolean>(false);
 
@@ -64,7 +60,6 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         batchId: '',
     });
 
-    // NEW: Export Form State (Defaults to 1st of current month to today)
     const [exportForm, setExportForm] = useState({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         endDate: getTodayISOString()
@@ -84,7 +79,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                     setSelectedFarmId(farmList[0].id);
                 }
             } catch {
-                if (isMounted) setErrorMessage('Could not load farm facilities.');
+                if (isMounted) setErrorMessage('Could not load farms.');
             } finally {
                 if (isMounted) setLoading(false);
             }
@@ -150,7 +145,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                     }
                 }
             } catch {
-                if (isMounted) setErrorMessage('Error synchronizing financial analytics.');
+                if (isMounted) setErrorMessage('Error loading financial data.');
             } finally {
                 if (isMounted) setLoading(false);
             }
@@ -202,7 +197,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
 
         try {
             await transactionService.createTransaction(payload);
-            setSuccessMessage('Transaction recorded successfully!');
+            setSuccessMessage('Record saved successfully!');
             setShowTxModal(false);
 
             setTxForm({
@@ -218,7 +213,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
             setTimeout(() => setSuccessMessage(null), 4000);
         } catch (err: unknown) {
             if (axios.isAxiosError(err)) {
-                setErrorMessage(typeof err.response?.data === 'string' ? err.response.data : err.response?.data?.message || 'Failed to record transaction.');
+                setErrorMessage(typeof err.response?.data === 'string' ? err.response.data : err.response?.data?.message || 'Failed to save record.');
             } else {
                 setErrorMessage('An unexpected error occurred.');
             }
@@ -227,7 +222,6 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         }
     };
 
-    // NEW: Handle CSV Export
     const handleExport = async (e: React.FormEvent) => {
         e.preventDefault();
         setExporting(true);
@@ -235,16 +229,15 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         try {
             await transactionService.exportLedgerToCsv(organisationId, exportForm.startDate, exportForm.endDate);
             setShowExportModal(false);
-            setSuccessMessage('Audit downloaded successfully!');
+            setSuccessMessage('Report downloaded successfully!');
             setTimeout(() => setSuccessMessage(null), 4000);
         } catch {
-            setErrorMessage('Failed to generate audit CSV. Please try again.');
+            setErrorMessage('Failed to generate report. Please try again.');
         } finally {
             setExporting(false);
         }
     };
 
-    // Derived Analytics Values
     const activeRevenue = batchPnl ? batchPnl.totalRevenue || 0 : farmOverview ? farmOverview.totalRevenue || 0 : 0;
     const activeExpenses = batchPnl ? batchPnl.totalExpenses || 0 : farmOverview ? farmOverview.totalExpenses || 0 : 0;
     const activeNetProfit = batchPnl ? batchPnl.netProfitOrLoss || 0 : farmOverview ? farmOverview.totalNetProfit || 0 : 0;
@@ -254,90 +247,78 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
     return (
         <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-12">
 
-            {/* 1. TOP EXECUTIVE HEADER BAR */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-farma-forest/10 pb-5">
                 <div>
-                    <h3 className="text-2xl md:text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
-                        {isProprietor ? 'Financial Intelligence & P&L' : 'Site Financials & Ledger'}
+                    <h3 className="text-2xl md:text-3xl font-bold text-farma-forest tracking-tight">
+                        {isProprietor ? 'Farm Finances & Profit' : 'My Farm Finances'}
                     </h3>
-                    <p className="text-sm text-[#101B14]/70 font-medium mt-1">
-                        Real-time unit economics, expense tracking, and cohort profitability margins.
+                    <p className="text-sm text-farma-forest/70 font-medium mt-1">
+                        Track your income, expenses, and farm profits in real-time.
                     </p>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                    {/* NEW: Export Button */}
                     <button
                         type="button"
                         onClick={() => setShowExportModal(true)}
-                        className="px-5 py-3 rounded-lg bg-white border border-[#101B14]/20 hover:bg-[#FBF9F5] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-sm transition-all flex items-center space-x-2 cursor-pointer"
+                        className="px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 hover:bg-farma-cream text-farma-forest font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        <span className="hidden sm:inline">Export Audit</span>
+                        <IconDownload />
+                        <span className="hidden sm:inline">Download Report</span>
                     </button>
 
                     <button
                         type="button"
                         onClick={() => setShowTxModal(true)}
-                        className="px-5 py-3 rounded-lg bg-[#D9A63E] hover:bg-[#c99834] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center space-x-2 cursor-pointer"
+                        className="px-4 py-2.5 rounded-lg bg-farma-gold hover:bg-farma-gold-hover text-farma-forest font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 cursor-pointer"
                     >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Post Receipt</span>
+                        <IconPlus />
+                        <span>Add Record</span>
                     </button>
                 </div>
             </div>
 
-            {/* Inline Feedback Alerts */}
             {errorMessage && (
-                <div className="p-4 rounded-xl bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-xs font-bold shadow-sm">
+                <div className="p-4 rounded-lg bg-farma-terracotta/10 border border-farma-terracotta/30 text-farma-terracotta text-sm font-semibold shadow-sm">
                     {errorMessage}
                 </div>
             )}
             {successMessage && (
-                <div className="p-4 rounded-xl bg-[#2A5C38]/10 border border-[#2A5C38]/30 text-[#2A5C38] text-xs font-bold shadow-sm flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                <div className="p-4 rounded-lg bg-farma-green/10 border border-farma-green/30 text-farma-green text-sm font-semibold shadow-sm flex items-center gap-2">
+                    <IconCheck />
                     {successMessage}
                 </div>
             )}
 
-            {/* 2. MODE NAVIGATION TABS & SCOPE PICKERS */}
-            <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-5 shadow-xs space-y-5">
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-[#101B14]/10 pb-5">
+            <div className="bg-farma-cream border border-farma-forest/10 rounded-xl p-5 shadow-sm space-y-5">
+                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-farma-forest/10 pb-5">
 
-                    {/* View Mode Tabs */}
-                    <div className="flex items-center space-x-2 bg-white border border-[#101B14]/10 p-1.5 rounded-lg w-fit shrink-0">
+                    <div className="flex items-center space-x-2 bg-white border border-farma-forest/10 p-1.5 rounded-lg w-fit shrink-0">
                         <button
                             type="button"
                             onClick={() => setActiveTabMode('ANALYTICS')}
-                            className={`px-5 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${activeTabMode === 'ANALYTICS'
-                                    ? 'bg-[#101B14] text-white shadow-sm'
-                                    : 'text-[#101B14]/60 hover:text-[#101B14] hover:bg-[#101B14]/5'
+                            className={`px-5 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${activeTabMode === 'ANALYTICS'
+                                    ? 'bg-farma-forest text-white shadow-sm'
+                                    : 'text-farma-forest/60 hover:text-farma-forest hover:bg-farma-forest/5'
                                 }`}
                         >
-                            📊 Analytics
+                            Analytics
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTabMode('LEDGER')}
-                            className={`px-5 py-2.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${activeTabMode === 'LEDGER'
-                                    ? 'bg-[#101B14] text-white shadow-sm'
-                                    : 'text-[#101B14]/60 hover:text-[#101B14] hover:bg-[#101B14]/5'
+                            className={`px-5 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${activeTabMode === 'LEDGER'
+                                    ? 'bg-farma-forest text-white shadow-sm'
+                                    : 'text-farma-forest/60 hover:text-farma-forest hover:bg-farma-forest/5'
                                 }`}
                         >
-                            💳 Ledger ({transactions.length})
+                            Records ({transactions.length})
                         </button>
                     </div>
 
-                    {/* Scope Dropdowns */}
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
                         <div className="w-full sm:w-auto flex flex-col">
-                            <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#101B14]/50 mb-1 ml-1">Facility Scope</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Farm</span>
                             <select
                                 value={selectedFarmId}
                                 onChange={(e) => {
@@ -345,120 +326,107 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                     setSelectedBatchId('ALL');
                                 }}
                                 disabled={!isProprietor && farms.length <= 1}
-                                className="w-full sm:w-64 px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm appearance-none cursor-pointer disabled:opacity-50"
-                                style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                className="w-full sm:w-64 px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer disabled:opacity-50"
                             >
                                 {farms.map((f) => (
-                                    <option key={f.id} value={f.id}>🏢 {f.name}</option>
+                                    <option key={f.id} value={f.id}>{f.name}</option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="w-full sm:w-auto flex flex-col">
-                            <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#101B14]/50 mb-1 ml-1">Cohort Scope</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Flock</span>
                             <select
                                 value={selectedBatchId}
                                 onChange={(e) => setSelectedBatchId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-                                className="w-full sm:w-64 px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm appearance-none cursor-pointer"
-                                style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                className="w-full sm:w-64 px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer"
                             >
-                                <option value="ALL">🌐 All Batches (Overview)</option>
+                                <option value="ALL">All Flocks (Overview)</option>
                                 {batches.map((b) => (
-                                    <option key={b.id} value={b.id}>🛖 {b.sectionName} (#{b.batchNumber})</option>
+                                    <option key={b.id} value={b.id}>{b.sectionName} (#{b.batchNumber})</option>
                                 ))}
                             </select>
                         </div>
                     </div>
                 </div>
 
-                {/* MODE 1: EXECUTIVE P&L ANALYTICS */}
                 {activeTabMode === 'ANALYTICS' && (
                     <div className="space-y-6 pt-2">
-                        {/* KPI Revenue vs Expense Gauge Grid */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                            {/* Revenue Card */}
-                            <div className="bg-[#2A5C38]/5 border border-[#2A5C38]/20 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-                                <span className="text-[10px] font-mono font-bold text-[#2A5C38] uppercase tracking-widest block mb-1">
-                                    Gross Revenue (Inflow)
+                            <div className="bg-farma-green/5 border border-farma-green/20 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                                <span className="text-xs font-semibold text-farma-green uppercase tracking-widest block mb-1">
+                                    Total Income
                                 </span>
-                                <div className="text-3xl font-extrabold text-[#2A5C38] font-mono">
+                                <div className="text-3xl font-bold text-farma-green tabular-nums">
                                     ₦{activeRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
 
-                            {/* Expenses Card */}
-                            <div className="bg-[#E76F51]/5 border border-[#E76F51]/20 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-                                <span className="text-[10px] font-mono font-bold text-[#E76F51] uppercase tracking-widest block mb-1">
-                                    Operational Expenses
+                            <div className="bg-farma-terracotta/5 border border-farma-terracotta/20 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                                <span className="text-xs font-semibold text-farma-terracotta uppercase tracking-widest block mb-1">
+                                    Total Expenses
                                 </span>
-                                <div className="text-3xl font-extrabold text-[#E76F51] font-mono">
+                                <div className="text-3xl font-bold text-farma-terracotta tabular-nums">
                                     ₦{activeExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
 
-                            {/* Net Profit Card */}
-                            <div className={`rounded-2xl p-6 shadow-xs flex flex-col justify-between relative overflow-hidden ${activeNetProfit >= 0 ? 'bg-[#101B14] border border-[#101B14]' : 'bg-[#101B14] border border-[#E76F51]'
-                                }`}>
-                                {/* Background Accent */}
-                                <div className={`absolute top-0 right-0 w-24 h-24 rounded-full blur-3xl opacity-20 -mr-10 -mt-10 ${activeNetProfit >= 0 ? 'bg-[#D9A63E]' : 'bg-[#E76F51]'
-                                    }`}></div>
-
+                            <div className={`rounded-xl p-5 shadow-sm flex flex-col justify-between relative overflow-hidden ${activeNetProfit >= 0 ? 'bg-farma-forest border border-farma-forest' : 'bg-farma-forest border border-farma-terracotta'}`}>
                                 <div className="flex items-center justify-between relative z-10 mb-2">
-                                    <span className="text-[10px] font-mono font-bold text-white/60 uppercase tracking-widest">
-                                        Bottom Line Profit
+                                    <span className="text-xs font-semibold text-white/60 uppercase tracking-widest">
+                                        Net Profit
                                     </span>
-                                    <span className={`px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase tracking-widest border ${activeNetProfit >= 0
-                                            ? 'bg-[#2A5C38]/20 text-[#2A5C38] border-[#2A5C38]/30 bg-white'
-                                            : 'bg-[#E76F51]/20 text-[#E76F51] border-[#E76F51]/30 bg-white'
+                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border ${activeNetProfit >= 0
+                                            ? 'text-farma-green border-farma-green/30 bg-white'
+                                            : 'text-farma-terracotta border-farma-terracotta/30 bg-white'
                                         }`}>
-                                        {activeNetProfit >= 0 ? 'Profitable' : 'Deficit'}
+                                        {activeNetProfit >= 0 ? 'Profit' : 'Loss'}
                                     </span>
                                 </div>
-                                <div className={`text-3xl font-extrabold font-mono relative z-10 ${activeNetProfit >= 0 ? 'text-white' : 'text-[#E76F51]'}`}>
+                                <div className={`text-3xl font-bold tabular-nums relative z-10 ${activeNetProfit >= 0 ? 'text-white' : 'text-farma-terracotta'}`}>
                                     {activeNetProfit >= 0 ? '+' : ''}₦{activeNetProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </div>
-                                <span className="text-[10px] font-mono font-bold text-[#D9A63E] mt-2 relative z-10 block">
-                                    Net Margin: {activeMargin.toFixed(1)}%
+                                <span className="text-[10px] font-bold text-farma-gold mt-2 relative z-10 block uppercase tracking-widest">
+                                    Profit Margin: {activeMargin.toFixed(1)}%
                                 </span>
                             </div>
                         </div>
 
-                        {/* Unit Economics Spotlight Cards (Only visible if specific batch selected) */}
                         {batchPnl && (
-                            <div className="bg-[#ECE6D6] border border-[#101B14]/10 rounded-2xl p-6 shadow-inner space-y-4">
+                            <div className="bg-farma-sand border border-farma-forest/10 rounded-xl p-5 shadow-sm space-y-4">
                                 <div>
-                                    <h4 className="text-sm font-extrabold uppercase text-[#101B14] tracking-widest flex items-center gap-2">
-                                        <span>🧬</span> Cohort Unit Economics
+                                    <h4 className="text-sm font-bold uppercase text-farma-forest tracking-widest flex items-center gap-2">
+                                        Flock Economics (Per Bird)
                                     </h4>
-                                    <p className="text-[10px] font-bold text-[#101B14]/60 font-mono mt-1">
-                                        Breeds true financial efficiency by dividing total financials by the initial population count.
+                                    <p className="text-[10px] font-semibold text-farma-forest/60 mt-1 uppercase tracking-widest">
+                                        Shows how much you spent and made for each bird in this flock.
                                     </p>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-sm">
-                                        <span className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest block mb-1">
-                                            Cost to Raise (Per Bird)
+                                    <div className="bg-white border border-farma-forest/10 rounded-lg p-5 shadow-sm">
+                                        <span className="text-[10px] text-farma-forest/50 font-bold uppercase tracking-widest block mb-1">
+                                            Cost (Per Bird)
                                         </span>
-                                        <span className="text-2xl font-extrabold text-[#E76F51] font-mono block">
+                                        <span className="text-2xl font-bold text-farma-terracotta tabular-nums block">
                                             ₦{(batchPnl.costPerBird || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </div>
 
-                                    <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-sm">
-                                        <span className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest block mb-1">
-                                            Revenue (Per Bird)
+                                    <div className="bg-white border border-farma-forest/10 rounded-lg p-5 shadow-sm">
+                                        <span className="text-[10px] text-farma-forest/50 font-bold uppercase tracking-widest block mb-1">
+                                            Income (Per Bird)
                                         </span>
-                                        <span className="text-2xl font-extrabold text-[#2A5C38] font-mono block">
+                                        <span className="text-2xl font-bold text-farma-green tabular-nums block">
                                             ₦{(batchPnl.revenuePerBird || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </div>
 
-                                    <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-sm border-l-4 border-l-[#101B14]">
-                                        <span className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest block mb-1">
-                                            Net Profit (Per Bird)
+                                    <div className="bg-white border border-farma-forest/10 rounded-lg p-5 shadow-sm border-l-4 border-l-farma-forest">
+                                        <span className="text-[10px] text-farma-forest/50 font-bold uppercase tracking-widest block mb-1">
+                                            Profit (Per Bird)
                                         </span>
-                                        <span className="text-2xl font-extrabold text-[#101B14] font-mono block">
+                                        <span className="text-2xl font-bold text-farma-forest tabular-nums block">
                                             ₦{(batchPnl.profitPerBird || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </div>
@@ -466,23 +434,21 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                             </div>
                         )}
 
-                        {/* Graphical Analytics Section */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Left: Expense Category Graph Bars */}
-                            <div className="bg-white border border-[#101B14]/10 rounded-2xl p-6 shadow-xs flex flex-col h-full">
-                                <div className="border-b border-[#101B14]/10 pb-4 mb-5">
-                                    <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif]">
-                                        Capital Distribution
+                            <div className="bg-white border border-farma-forest/10 rounded-xl p-6 shadow-sm flex flex-col h-full">
+                                <div className="border-b border-farma-forest/10 pb-4 mb-5">
+                                    <h4 className="text-lg font-bold text-farma-forest">
+                                        Expense Breakdown
                                     </h4>
-                                    <p className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest mt-1">
-                                        Where operational capital is spent
+                                    <p className="text-xs text-farma-forest/50 font-medium mt-1">
+                                        Where your money is being spent
                                     </p>
                                 </div>
 
                                 {loading ? (
                                     <div className="flex-1 flex flex-col items-center justify-center text-center">
-                                        <div className="w-8 h-8 border-4 border-[#2A5C38]/20 border-t-[#2A5C38] rounded-full animate-spin mb-3"></div>
-                                        <span className="text-[#101B14]/40 font-mono text-[10px] font-bold uppercase tracking-widest">Crunching numbers...</span>
+                                        <div className="w-8 h-8 border-4 border-farma-green/20 border-t-farma-green rounded-full animate-spin mb-3"></div>
+                                        <span className="text-farma-forest/40 text-xs font-semibold uppercase tracking-widest">Loading data...</span>
                                     </div>
                                 ) : expenseBreakdown.length > 0 ? (
                                     <div className="space-y-5">
@@ -491,21 +457,21 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                             return (
                                                 <div key={item.category || idx} className="space-y-2">
                                                     <div className="flex justify-between items-end">
-                                                        <span className="font-extrabold text-[#101B14] text-xs">
+                                                        <span className="font-semibold text-farma-forest text-xs">
                                                             {item.category.replace('_', ' ')}
                                                         </span>
                                                         <div className="text-right">
-                                                            <span className="text-[#101B14] font-bold text-xs font-mono block">
+                                                            <span className="text-farma-forest font-semibold text-xs tabular-nums block">
                                                                 ₦{(item.totalAmount || 0).toLocaleString()}
                                                             </span>
-                                                            <span className="text-[9px] font-mono font-bold text-[#E76F51]">
+                                                            <span className="text-[10px] font-bold text-farma-terracotta">
                                                                 {pct.toFixed(1)}% of total
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="w-full bg-[#101B14]/5 rounded-full h-2 overflow-hidden">
+                                                    <div className="w-full bg-farma-forest/5 rounded-full h-2 overflow-hidden">
                                                         <div
-                                                            className="bg-[#E76F51] h-full rounded-full transition-all duration-1000 ease-out"
+                                                            className="bg-farma-terracotta h-full rounded-full transition-all duration-1000 ease-out"
                                                             style={{ width: `${Math.min(100, pct)}%` }}
                                                         />
                                                     </div>
@@ -515,65 +481,64 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                     </div>
                                 ) : (
                                     <div className="flex-1 flex items-center justify-center text-center">
-                                        <span className="text-[#101B14]/40 font-mono text-[10px] font-bold uppercase tracking-widest">No expenses recorded yet.</span>
+                                        <span className="text-farma-forest/40 text-xs font-semibold uppercase tracking-widest">No expenses recorded yet.</span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Right: Cohort Profitability Matrix Cards */}
-                            <div className="lg:col-span-2 bg-white border border-[#101B14]/10 rounded-2xl p-6 shadow-xs h-full">
-                                <div className="border-b border-[#101B14]/10 pb-4 mb-5">
-                                    <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif]">
-                                        Cohort Performance Matrix
+                            <div className="lg:col-span-2 bg-white border border-farma-forest/10 rounded-xl p-6 shadow-sm h-full">
+                                <div className="border-b border-farma-forest/10 pb-4 mb-5">
+                                    <h4 className="text-lg font-bold text-farma-forest">
+                                        Flock Comparison
                                     </h4>
-                                    <p className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest mt-1">
-                                        Comparative financial overview across facility batches
+                                    <p className="text-xs text-farma-forest/50 font-medium mt-1">
+                                        Compare income and profit across different flocks
                                     </p>
                                 </div>
 
                                 {loading ? (
                                     <div className="py-12 flex flex-col items-center justify-center text-center">
-                                        <div className="w-8 h-8 border-4 border-[#2A5C38]/20 border-t-[#2A5C38] rounded-full animate-spin mb-3"></div>
+                                        <div className="w-8 h-8 border-4 border-farma-green/20 border-t-farma-green rounded-full animate-spin mb-3"></div>
                                     </div>
                                 ) : farmOverview && farmOverview.batchSummaries && farmOverview.batchSummaries.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {farmOverview.batchSummaries.map((b) => (
                                             <div
                                                 key={b.batchId}
-                                                className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-5 hover:shadow-md transition-shadow duration-300"
+                                                className="bg-farma-cream border border-farma-forest/10 rounded-lg p-5 hover:shadow-md transition-shadow duration-300"
                                             >
-                                                <div className="flex items-start justify-between border-b border-[#101B14]/10 pb-3 mb-4">
+                                                <div className="flex items-start justify-between border-b border-farma-forest/10 pb-3 mb-4">
                                                     <div>
-                                                        <span className="text-[9px] font-mono font-extrabold text-[#101B14]/50 uppercase tracking-widest block mb-1">
+                                                        <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest block mb-1">
                                                             {b.sectionName}
                                                         </span>
-                                                        <h5 className="text-base font-extrabold text-[#101B14] leading-none">
+                                                        <h5 className="text-sm font-bold text-farma-forest leading-none">
                                                             Batch #{b.batchNumber}
                                                         </h5>
                                                     </div>
-                                                    <span className="px-2 py-1 rounded text-[9px] font-extrabold uppercase tracking-widest bg-white border border-[#101B14]/10 text-[#101B14]/70 shadow-sm">
+                                                    <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-white border border-farma-forest/10 text-farma-forest/70 shadow-sm">
                                                         {b.status}
                                                     </span>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-4 text-xs font-mono mb-4">
+                                                <div className="grid grid-cols-2 gap-4 mb-4">
                                                     <div>
-                                                        <span className="text-[9px] text-[#101B14]/50 font-bold block uppercase tracking-widest mb-1">Revenue</span>
-                                                        <span className="font-bold text-[#2A5C38] text-sm">
+                                                        <span className="text-[10px] text-farma-forest/50 font-bold block uppercase tracking-widest mb-1">Revenue</span>
+                                                        <span className="font-bold text-farma-green text-sm tabular-nums">
                                                             ₦{(b.revenue || 0).toLocaleString()}
                                                         </span>
                                                     </div>
                                                     <div>
-                                                        <span className="text-[9px] text-[#101B14]/50 font-bold block uppercase tracking-widest mb-1">Expenses</span>
-                                                        <span className="font-bold text-[#E76F51] text-sm">
+                                                        <span className="text-[10px] text-farma-forest/50 font-bold block uppercase tracking-widest mb-1">Expenses</span>
+                                                        <span className="font-bold text-farma-terracotta text-sm tabular-nums">
                                                             ₦{(b.expenses || 0).toLocaleString()}
                                                         </span>
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-white rounded-lg p-3 border border-[#101B14]/5 flex items-center justify-between font-mono">
-                                                    <span className="text-[10px] font-bold text-[#101B14]/60 uppercase tracking-widest">Net Profit</span>
-                                                    <span className={`text-base font-extrabold ${(b.netProfit || 0) >= 0 ? 'text-[#2A5C38]' : 'text-[#E76F51]'}`}>
+                                                <div className="bg-white rounded-md p-3 border border-farma-forest/5 flex items-center justify-between">
+                                                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest">Net Profit</span>
+                                                    <span className={`text-sm font-bold tabular-nums ${(b.netProfit || 0) >= 0 ? 'text-farma-green' : 'text-farma-terracotta'}`}>
                                                         {(b.netProfit || 0) >= 0 ? '+' : ''}₦{(b.netProfit || 0).toLocaleString()}
                                                     </span>
                                                 </div>
@@ -582,12 +547,10 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                     </div>
                                 ) : (
                                     <div className="py-12 flex flex-col items-center justify-center text-center">
-                                        <div className="w-16 h-16 rounded-full bg-[#ECE6D6] flex items-center justify-center text-[#101B14]/30 mb-4 shadow-inner">
-                                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
+                                        <div className="w-12 h-12 rounded-full bg-farma-sand flex items-center justify-center text-farma-forest/30 mb-4 shadow-inner">
+                                            <IconEmpty />
                                         </div>
-                                        <span className="text-[#101B14]/50 font-bold text-sm">No cohort summaries available for comparison.</span>
+                                        <span className="text-farma-forest/50 font-semibold text-sm">No flock data available.</span>
                                     </div>
                                 )}
                             </div>
@@ -595,54 +558,53 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                     </div>
                 )}
 
-                {/* MODE 2: AUDIT TRANSACTION LEDGER */}
                 {activeTabMode === 'LEDGER' && (
-                    <div className="bg-white border border-[#101B14]/10 rounded-2xl overflow-hidden shadow-xs mt-2">
+                    <div className="bg-white border border-farma-forest/10 rounded-xl overflow-hidden shadow-sm mt-2">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs font-sans text-[#101B14] min-w-[700px]">
-                                <thead className="bg-[#ECE6D6] text-[#101B14]/60 font-mono uppercase text-[9px] font-extrabold tracking-widest border-b border-[#101B14]/10">
+                            <table className="w-full text-left text-sm text-farma-forest min-w-[700px]">
+                                <thead className="bg-farma-sand text-farma-forest/60 uppercase text-[10px] font-bold tracking-widest border-b border-farma-forest/10">
                                     <tr>
-                                        <th className="px-6 py-4">Audit Date</th>
+                                        <th className="px-6 py-4">Date</th>
                                         <th className="px-6 py-4">Category & Details</th>
-                                        <th className="px-6 py-4">Batch Ref</th>
-                                        <th className="px-6 py-4">Flow</th>
+                                        <th className="px-6 py-4">Flock Ref</th>
+                                        <th className="px-6 py-4">Type</th>
                                         <th className="px-6 py-4 text-right">Amount (₦)</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-[#101B14]/5 font-mono">
+                                <tbody className="divide-y divide-farma-forest/5">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-16 text-center text-[#101B14]/40 font-bold tracking-widest uppercase text-[10px]">
-                                                Loading transaction ledger...
+                                            <td colSpan={5} className="px-6 py-16 text-center text-farma-forest/40 font-semibold tracking-widest uppercase text-xs">
+                                                Loading records...
                                             </td>
                                         </tr>
                                     ) : transactions.length > 0 ? (
                                         transactions.map((tx, idx) => {
                                             const txId = tx.transactionId || idx;
                                             return (
-                                                <tr key={txId} className="hover:bg-[#FBF9F5] transition-colors">
-                                                    <td className="px-6 py-4 font-bold text-[#101B14] whitespace-nowrap">{tx.transactionDate}</td>
+                                                <tr key={txId} className="hover:bg-farma-cream transition-colors">
+                                                    <td className="px-6 py-4 font-semibold text-farma-forest whitespace-nowrap tabular-nums">{tx.transactionDate}</td>
                                                     <td className="px-6 py-4">
-                                                        <div className="font-extrabold text-[#101B14] mb-1">{tx.category.replace('_', ' ')}</div>
-                                                        <span className="text-[10px] font-sans text-[#101B14]/60 block truncate max-w-[250px]" title={tx.description}>
+                                                        <div className="font-bold text-farma-forest mb-1">{tx.category.replace('_', ' ')}</div>
+                                                        <span className="text-xs text-farma-forest/60 block truncate max-w-[250px]" title={tx.description}>
                                                             {tx.description}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 font-bold text-[#101B14]/70">
-                                                        {tx.batchNumber ? `#${tx.batchNumber}` : tx.batchId ? `Batch #${tx.batchId}` : 'General / Facility'}
+                                                    <td className="px-6 py-4 font-semibold text-farma-forest/70 tabular-nums">
+                                                        {tx.batchNumber ? `#${tx.batchNumber}` : tx.batchId ? `Batch #${tx.batchId}` : 'General Farm Expense'}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         {tx.type === 'CREDIT' ? (
-                                                            <span className="px-2.5 py-1 rounded-md bg-[#2A5C38]/10 text-[#2A5C38] border border-[#2A5C38]/20 text-[9px] font-extrabold uppercase tracking-widest inline-flex items-center gap-1">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-[#2A5C38]"></span> Income
+                                                            <span className="px-2.5 py-1 rounded-md bg-farma-green/10 text-farma-green border border-farma-green/20 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-farma-green"></span> Income
                                                             </span>
                                                         ) : (
-                                                            <span className="px-2.5 py-1 rounded-md bg-[#E76F51]/10 text-[#E76F51] border border-[#E76F51]/20 text-[9px] font-extrabold uppercase tracking-widest inline-flex items-center gap-1">
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-[#E76F51]"></span> Expense
+                                                            <span className="px-2.5 py-1 rounded-md bg-farma-terracotta/10 text-farma-terracotta border border-farma-terracotta/20 text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-farma-terracotta"></span> Expense
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className={`px-6 py-4 text-right font-extrabold text-sm ${tx.type === 'CREDIT' ? 'text-[#2A5C38]' : 'text-[#E76F51]'}`}>
+                                                    <td className={`px-6 py-4 text-right font-bold tabular-nums ${tx.type === 'CREDIT' ? 'text-farma-green' : 'text-farma-terracotta'}`}>
                                                         {tx.type === 'CREDIT' ? '+' : '-'} {(tx.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </td>
                                                 </tr>
@@ -651,7 +613,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                     ) : (
                                         <tr>
                                             <td colSpan={5} className="px-6 py-16 text-center">
-                                                <span className="text-[#101B14]/40 font-bold font-sans text-sm block">No transaction receipts recorded under this scope.</span>
+                                                <span className="text-farma-forest/40 font-semibold text-sm block">No records found for this selection.</span>
                                             </td>
                                         </tr>
                                     )}
@@ -662,44 +624,43 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                 )}
             </div>
 
-            {/* NEW: Export Date Window Modal */}
             {showExportModal && (
-                <div className="fixed inset-0 bg-[#101B14]/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-[#FBF9F5] rounded-2xl max-w-sm w-full shadow-2xl flex flex-col overflow-hidden border border-[#101B14]/20">
-                        <div className="p-6 bg-white border-b border-[#101B14]/10">
-                            <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif]">Audit Download</h4>
-                            <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-1">
-                                Select Financial Time Window
+                <div className="fixed inset-0 bg-farma-forest/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-farma-cream rounded-xl max-w-sm w-full shadow-2xl flex flex-col overflow-hidden border border-farma-forest/20">
+                        <div className="p-6 bg-white border-b border-farma-forest/10">
+                            <h4 className="text-xl font-bold text-farma-forest">Download Report</h4>
+                            <p className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mt-1">
+                                Select Date Range
                             </p>
                         </div>
 
                         <form onSubmit={handleExport} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">From Date *</label>
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Start Date *</label>
                                 <input
                                     type="date"
                                     required
                                     value={exportForm.startDate}
                                     onChange={(e) => setExportForm({ ...exportForm, startDate: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-[#101B14]/30"
+                                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-farma-forest/30"
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">To Date *</label>
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">End Date *</label>
                                 <input
                                     type="date"
                                     required
                                     value={exportForm.endDate}
                                     onChange={(e) => setExportForm({ ...exportForm, endDate: e.target.value })}
-                                    className="w-full px-4 py-3 rounded-lg bg-white border border-[#101B14]/20 text-sm font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-[#101B14]/30"
+                                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-sm font-semibold shadow-sm focus:outline-none focus:ring-2 focus:ring-farma-forest/30"
                                 />
                             </div>
 
                             <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowExportModal(false)} className="flex-1 py-3.5 bg-transparent text-[#101B14]/60 font-bold text-xs uppercase tracking-wider hover:bg-[#101B14]/5 rounded-lg transition-colors cursor-pointer">
+                                <button type="button" onClick={() => setShowExportModal(false)} className="flex-1 py-3 bg-transparent text-farma-forest/60 font-bold text-xs uppercase tracking-wider hover:bg-farma-forest/5 rounded-lg transition-colors cursor-pointer">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={exporting} className="flex-1 py-3.5 bg-[#101B14] text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-md hover:bg-[#3F6B47] transition-colors cursor-pointer disabled:opacity-50">
+                                <button type="submit" disabled={exporting} className="flex-1 py-3 bg-farma-forest text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm hover:bg-farma-green-light transition-colors cursor-pointer disabled:opacity-50">
                                     {exporting ? 'Generating...' : 'Download CSV'}
                                 </button>
                             </div>
@@ -708,67 +669,60 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                 </div>
             )}
 
-            {/* Record Transaction Modal */}
             {showTxModal && (
-                <div className="fixed inset-0 bg-[#101B14]/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
-                    <div className="bg-[#FBF9F5] border border-[#101B14]/20 rounded-2xl max-w-lg w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                <div className="fixed inset-0 bg-farma-forest/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-farma-cream border border-farma-forest/20 rounded-xl max-w-lg w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
 
-                        {/* Dynamic Top Indicator Bar based on Flow Type */}
-                        <div className={`h-2 w-full shrink-0 shadow-sm transition-colors duration-300 ${txForm.transactionType === 'CREDIT' ? 'bg-[#2A5C38]' : 'bg-[#E76F51]'}`}></div>
+                        <div className={`h-1.5 w-full shrink-0 shadow-sm transition-colors duration-300 ${txForm.transactionType === 'CREDIT' ? 'bg-farma-green' : 'bg-farma-terracotta'}`}></div>
 
-                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                        <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Record Receipt</h4>
-                                <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-1.5">
-                                    Update general ledger instantly
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Add Record</h4>
+                                <p className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mt-1">
+                                    Add a new income or expense record
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowTxModal(false)}
-                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                className="text-farma-forest/40 hover:text-farma-terracotta hover:bg-farma-terracotta/10 bg-farma-forest/5 transition-colors p-2 rounded-lg cursor-pointer"
                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <IconClose />
                             </button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
                             <form id="tx-form" onSubmit={handleCreateTransaction} className="space-y-6">
 
-                                {/* LIVE RECEIPT PREVIEW */}
-                                <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-sm text-center flex flex-col items-center">
-                                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#101B14]/50 mb-2">Live Receipt Posting Amount</span>
-                                    <div className={`text-4xl font-extrabold font-mono tracking-tighter ${txForm.transactionType === 'CREDIT' ? 'text-[#2A5C38]' : 'text-[#E76F51]'}`}>
+                                <div className="bg-white border border-farma-forest/10 rounded-lg p-5 shadow-sm text-center flex flex-col items-center">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-2">Amount to Record</span>
+                                    <div className={`text-4xl font-bold tabular-nums tracking-tighter ${txForm.transactionType === 'CREDIT' ? 'text-farma-green' : 'text-farma-terracotta'}`}>
                                         {txForm.transactionType === 'CREDIT' ? '+' : '-'} ₦{Number(txForm.amount || 0).toLocaleString()}
                                     </div>
-                                    <span className="text-[10px] font-bold text-[#101B14]/40 uppercase mt-2">
-                                        Will post as {txForm.transactionType === 'CREDIT' ? 'Revenue' : 'Expense'}
+                                    <span className="text-[10px] font-semibold text-farma-forest/40 uppercase tracking-widest mt-2">
+                                        {txForm.transactionType === 'CREDIT' ? 'Will be recorded as Income' : 'Will be recorded as Expense'}
                                     </span>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Flow Direction *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Record Type *</label>
                                         <select
                                             value={txForm.transactionType}
                                             onChange={(e) => setTxForm({ ...txForm, transactionType: e.target.value as TransactionType })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm appearance-none cursor-pointer"
-                                            style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm cursor-pointer"
                                         >
-                                            <option value="CREDIT">🟢 Income (+)</option>
-                                            <option value="DEBIT">🔴 Expense (-)</option>
+                                            <option value="CREDIT">Income (+)</option>
+                                            <option value="DEBIT">Expense (-)</option>
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Category *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Category *</label>
                                         <select
                                             value={txForm.transactionCategory}
                                             onChange={(e) => setTxForm({ ...txForm, transactionCategory: e.target.value as TransactionCategory })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm appearance-none cursor-pointer"
-                                            style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm cursor-pointer"
                                         >
                                             {txForm.transactionType === 'CREDIT' ? (
                                                 <>
@@ -791,69 +745,68 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">
-                                        Target Cohort (Cost Center)
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                        Select Flock (Optional)
                                     </label>
                                     <select
                                         value={txForm.batchId}
                                         onChange={(e) => setTxForm({ ...txForm, batchId: e.target.value === '' ? '' : Number(e.target.value) })}
-                                        className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm appearance-none cursor-pointer"
-                                        style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm cursor-pointer"
                                     >
-                                        <option value="">🏢 General Facility (Overhead)</option>
+                                        <option value="">General Farm Record</option>
                                         {batches.map((b) => (
-                                            <option key={b.id} value={b.id}>🛖 {b.sectionName} — Batch #{b.batchNumber}</option>
+                                            <option key={b.id} value={b.id}>{b.sectionName} — Batch #{b.batchNumber}</option>
                                         ))}
                                     </select>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Amount (₦) *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Amount (₦) *</label>
                                         <input
                                             type="number"
                                             required
                                             min="1"
                                             value={txForm.amount || ''}
                                             onChange={(e) => setTxForm({ ...txForm, amount: Number(e.target.value) })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-lg font-extrabold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-base font-bold focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Transaction Date *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Date *</label>
                                         <input
                                             type="date"
                                             required
                                             value={txForm.transactionDate}
                                             onChange={(e) => setTxForm({ ...txForm, transactionDate: e.target.value })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">
-                                        Audit Narrative / Description *
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                        Description / Notes *
                                     </label>
                                     <textarea
                                         rows={3}
                                         required
                                         maxLength={250}
-                                        placeholder="e.g. Sold 200 mature broilers at ₦4,500/bird to distributor."
+                                        placeholder="e.g. Sold 200 chickens at ₦4,500 each."
                                         value={txForm.description}
                                         onChange={(e) => setTxForm({ ...txForm, description: e.target.value })}
-                                        className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm focus:outline-none focus:border-[#D9A63E] focus:ring-2 focus:ring-[#D9A63E]/30 transition-all shadow-sm resize-none"
+                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm focus:outline-none focus:border-farma-gold focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm resize-none"
                                     />
                                 </div>
                             </form>
                         </div>
 
-                        <div className="p-5 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex items-center justify-end gap-3 z-10">
+                        <div className="p-5 bg-farma-sand border-t border-farma-forest/10 shrink-0 flex items-center justify-end gap-3 z-10">
                             <button
                                 type="button"
                                 onClick={() => setShowTxModal(false)}
-                                className="px-5 py-3.5 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                className="px-5 py-3 rounded-lg bg-transparent hover:bg-farma-forest/5 text-farma-forest/60 hover:text-farma-forest font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -861,10 +814,10 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                 type="submit"
                                 form="tx-form"
                                 disabled={submitting || txForm.amount <= 0}
-                                className={`px-6 py-3.5 rounded-lg text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 ${txForm.transactionType === 'CREDIT' ? 'bg-[#2A5C38] hover:bg-[#1f452a]' : 'bg-[#E76F51] hover:bg-[#c6583d]'
+                                className={`px-6 py-3 rounded-lg text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50 ${txForm.transactionType === 'CREDIT' ? 'bg-farma-green hover:bg-farma-green-light' : 'bg-farma-terracotta hover:bg-[#c6583d]'
                                     }`}
                             >
-                                {submitting ? 'Posting...' : 'Confirm & Post Receipt'}
+                                {submitting ? 'Saving...' : 'Save Record'}
                             </button>
                         </div>
                     </div>
@@ -873,3 +826,37 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         </div>
     );
 };
+
+// ==========================================
+// Reusable SVG Components
+// ==========================================
+
+const IconDownload = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+);
+
+const IconPlus = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+    </svg>
+);
+
+const IconCheck = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+);
+
+const IconClose = () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
+const IconEmpty = () => (
+    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+);

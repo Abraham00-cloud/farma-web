@@ -1,55 +1,112 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export const PrivacyPolicy = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-[#ECE6D6] text-[#161F17] font-['IBM_Plex_Sans',sans-serif] selection:bg-[#3F6B47] selection:text-white py-12 px-4 sm:px-8">
-            <div className="max-w-[800px] mx-auto bg-[#F5F1E6] p-8 sm:p-12 rounded-xl border border-[#101B14]/10 shadow-sm">
+        <div className="min-h-screen bg-[#ECE6D6] font-['IBM_Plex_Sans',sans-serif] text-[#161F17] antialiased selection:bg-[#3F6B47] selection:text-white relative overflow-hidden">
+            
+            {/* Aesthetic Ambient Background Orbs */}
+            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#3F6B47] rounded-full mix-blend-multiply filter blur-[150px] opacity-20 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#D9A63E] rounded-full mix-blend-multiply filter blur-[150px] opacity-15 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
+
+            <div className="relative z-10 max-w-[800px] mx-auto py-12 px-6 sm:px-8 lg:py-20">
                 
-                <button onClick={() => navigate('/')} className="text-[#3F6B47] font-semibold text-sm hover:underline mb-8 inline-flex items-center gap-2">
-                    ← Back to Home
-                </button>
+                {/* Branding & Back Button */}
+                <div className="flex items-center justify-between mb-12">
+                    <button 
+                        onClick={() => navigate('/')} 
+                        className="inline-flex items-center gap-2 text-[#101B14]/60 hover:text-[#101B14] font-bold text-sm transition-colors cursor-pointer"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Back to Home
+                    </button>
 
-                <h1 className="font-['Fraunces',serif] text-3xl sm:text-4xl font-semibold mb-2">Privacy Policy</h1>
-                <p className="text-[#8FA091] font-['IBM_Plex_Mono',monospace] text-sm mb-10">Last Updated: August 2026</p>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#101B14] text-[#D9A63E] shadow-sm">
+                        <span className="font-['Fraunces',serif] font-bold text-xl leading-none mt-0.5">F</span>
+                    </div>
+                </div>
 
-                <div className="space-y-8 text-[#2c342d] text-[0.95rem] leading-[1.7]">
-                    <section>
-                        <h2 className="font-['Fraunces',serif] text-xl font-semibold mb-3 text-[#101B14]">1. Information We Collect</h2>
-                        <p>Farma ("we", "our", or "us") collects information to provide our enterprise farm management system. This includes:</p>
-                        <ul className="list-disc pl-5 mt-2 space-y-1">
-                            <li><strong>Account Information:</strong> Names, email addresses, and enterprise registration details provided during Proprietor and Manager onboarding.</li>
-                            <li><strong>Farm & Telemetry Data:</strong> Livestock batch data, mortality rates, feed consumption, environmental metrics, and biosecurity logs.</li>
-                            <li><strong>Financial Data:</strong> Operational ledger entries and Weighted Average Cost (WAC) calculations.</li>
-                        </ul>
-                    </section>
+                {/* Policy Document Container */}
+                <div className="bg-[#FBF9F5] p-8 sm:p-12 rounded-[2rem] border border-[#101B14]/10 shadow-xl shadow-[#101B14]/5">
+                    
+                    <div className="mb-10 border-b border-[#101B14]/10 pb-8">
+                        <h1 className="font-['Fraunces',serif] text-3xl sm:text-4xl font-extrabold mb-3 text-[#101B14] tracking-tight">Privacy Policy</h1>
+                        <p className="text-[#3F6B47] font-['IBM_Plex_Mono',monospace] text-xs font-bold uppercase tracking-widest">
+                            Effective Date: August 2026
+                        </p>
+                    </div>
 
-                    <section>
-                        <h2 className="font-['Fraunces',serif] text-xl font-semibold mb-3 text-[#101B14]">2. How We Use Your Data</h2>
-                        <p>Your data is strictly used to operate your customized Farma workspace. We use this data to:</p>
-                        <ul className="list-disc pl-5 mt-2 space-y-1">
-                            <li>Provide real-time analytics, FCR tracking, and financial P&L reporting.</li>
-                            <li>Trigger biosecurity and environmental safety alerts.</li>
-                            <li>Maintain strict Role-Based Access Control (RBAC) boundaries between Proprietors and Managers.</li>
-                        </ul>
-                    </section>
+                    <div className="space-y-10 text-[#101B14]/80 text-[0.95rem] leading-[1.8] font-medium">
+                        
+                        <section>
+                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-4 text-[#101B14]">1. Information We Collect</h2>
+                            <p className="mb-3">When you use Farma to manage your agricultural business, we collect the necessary information to make the software work for you. This includes:</p>
+                            <ul className="list-none space-y-3 mt-4">
+                                <li className="flex items-start gap-3">
+                                    <span className="text-[#D9A63E] font-bold mt-1">✓</span>
+                                    <div>
+                                        <strong className="text-[#101B14]">Account Details:</strong> Names, email addresses, and business registration details provided when you set up your farm organisation or add facility managers.
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <span className="text-[#D9A63E] font-bold mt-1">✓</span>
+                                    <div>
+                                        <strong className="text-[#101B14]">Farm Operations Data:</strong> Bird population counts, daily feed usage, mortality logs, warehouse inventory, and health reports submitted by your staff.
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <span className="text-[#D9A63E] font-bold mt-1">✓</span>
+                                    <div>
+                                        <strong className="text-[#101B14]">Financial Records:</strong> Income from sales, expenses for feed and medication, and your calculated profit margins.
+                                    </div>
+                                </li>
+                            </ul>
+                        </section>
 
-                    <section>
-                        <h2 className="font-['Fraunces',serif] text-xl font-semibold mb-3 text-[#101B14]">3. Data Sovereignty & Multi-Tenancy</h2>
-                        <p>Farma employs strict logical database partitioning. Your enterprise data is cryptographically isolated from all other organizations using our platform. We do not sell, rent, or trade your agricultural or financial data to any third parties, competitors, or market analysts.</p>
-                    </section>
+                        <section>
+                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-4 text-[#101B14]">2. How We Use Your Data</h2>
+                            <p className="mb-3">We only use your data to power your farm's dashboard. Specifically, your data is used to:</p>
+                            <ul className="list-disc pl-5 mt-2 space-y-2 marker:text-[#3F6B47]">
+                                <li>Automatically calculate your farm's live profit and costs per bird.</li>
+                                <li>Send you instant alerts if there is a sudden disease outbreak, mortality spike, or feed shortage.</li>
+                                <li>Ensure your Facility Managers only see the pens they are assigned to, while keeping your financial ledgers locked and visible only to you (the Owner).</li>
+                            </ul>
+                        </section>
 
-                    <section>
-                        <h2 className="font-['Fraunces',serif] text-xl font-semibold mb-3 text-[#101B14]">4. Infrastructure & Security</h2>
-                        <p>Our infrastructure is hosted securely on Amazon Web Services (AWS). We utilize stateless JWT (JSON Web Tokens) for authentication and TLS encryption for all data in transit. While we implement enterprise-grade security, no system is entirely impenetrable, and we cannot guarantee absolute security.</p>
-                    </section>
+                        <section className="bg-[#101B14]/5 p-6 rounded-2xl border border-[#101B14]/10">
+                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">3. Your Data Belongs to You</h2>
+                            <p>
+                                Your farm's data is strictly separated from every other organisation using Farma. 
+                                <strong> We will never sell, rent, or trade your agricultural data, business secrets, or financial records </strong> 
+                                to competitors, third-party advertisers, or market analysts. What happens on your farm, stays on your farm.
+                            </p>
+                        </section>
 
-                    <section>
-                        <h2 className="font-['Fraunces',serif] text-xl font-semibold mb-3 text-[#101B14]">5. Contact Us</h2>
-                        <p>For inquiries regarding data privacy or to exercise your rights under applicable data protection regulations (including the NDPR), please contact us at:</p>
-                        <p className="mt-2 font-['IBM_Plex_Mono',monospace] text-[#3F6B47] font-semibold">support@farma.com.ng</p>
-                    </section>
+                        <section>
+                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-4 text-[#101B14]">4. Keeping Your Data Safe</h2>
+                            <p>
+                                We treat your farm's data with the same security as a financial institution. Your information is stored on highly secure, enterprise-grade cloud servers (AWS). We use modern encryption to ensure your passwords and records are unreadable to anyone outside your authenticated organisation. While no system is 100% immune to threats, we follow strict industry standards to keep your business safe.
+                            </p>
+                        </section>
+
+                        <section className="border-t border-[#101B14]/10 pt-8">
+                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">5. Contact Us</h2>
+                            <p className="mb-4">
+                                If you have questions about how we handle your farm's privacy, or if you need to exercise your rights under the Nigeria Data Protection Regulation (NDPR), our team is ready to help.
+                            </p>
+                            <a href="mailto:support@farma.com.ng" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#3F6B47]/10 text-[#2A5C38] font-bold text-sm hover:bg-[#3F6B47]/20 transition-colors">
+                                ✉ support@farma.com.ng
+                            </a>
+                        </section>
+                    </div>
+                </div>
+                
+                <div className="text-center mt-8 text-xs text-[#101B14]/40 font-['IBM_Plex_Mono',monospace] font-semibold uppercase tracking-widest">
+                    © {new Date().getFullYear()} Farma Technologies
                 </div>
             </div>
         </div>

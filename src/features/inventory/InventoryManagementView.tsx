@@ -26,30 +26,23 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Active Category Tab
     const [activeCategory, setActiveCategory] = useState<InventoryCategory | 'ALL'>('ALL');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [onlyLowStock, setOnlyLowStock] = useState<boolean>(false);
 
-    // Modal controls
     const [showAddModal, setShowAddModal] = useState<boolean>(false);
-    
-    // Split Action Modals
     const [showAdjustModal, setShowAdjustModal] = useState<boolean>(false);
     const [showRestockModal, setShowRestockModal] = useState<boolean>(false);
     
     const [selectedItem, setSelectedItem] = useState<InventoryResponseDto | null>(null);
     
-    // Action States
     const [adjustAmount, setAdjustAmount] = useState<number | ''>('');
     const [restockQuantity, setRestockQuantity] = useState<number | ''>('');
     const [restockUnitPrice, setRestockUnitPrice] = useState<number | ''>('');
 
-    // Helper function to derive default expiry date lazily
     const getDefaultExpiryDate = () =>
         new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // New Item Form State
     const [itemForm, setItemForm] = useState<InventoryRequestDto>(() => ({
         name: '',
         category: 'FEED',
@@ -121,7 +114,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
 
         try {
             await inventoryService.createInventory(itemForm);
-            setSuccessMessage('Inventory item successfully onboarded!');
+            setSuccessMessage('Item successfully added to inventory!');
             setShowAddModal(false);
             setItemForm({
                 name: '',
@@ -146,7 +139,6 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         }
     };
 
-    // ACTION 1: Manual Adjust (Spoilage/Errors)
     const handleAdjustStock = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedItem || adjustAmount === '' || adjustAmount === 0) return;
@@ -156,7 +148,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
 
         try {
             await inventoryService.updateStockLevel(selectedItem.id, Number(adjustAmount));
-            setSuccessMessage(`Stock adjusted successfully for ${selectedItem.name}!`);
+            setSuccessMessage(`Stock updated successfully for ${selectedItem.name}!`);
             setShowAdjustModal(false);
             setSelectedItem(null);
             setAdjustAmount('');
@@ -173,13 +165,12 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         }
     };
 
-    // ACTION 2: Commercial Restock (Updates WAC)
     const handleRestock = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedItem || restockQuantity === '' || restockUnitPrice === '') return;
         
         if (Number(restockQuantity) <= 0 || Number(restockUnitPrice) <= 0) {
-            setErrorMessage("Both restock quantity and unit price must be strictly greater than zero.");
+            setErrorMessage("Both quantity bought and price must be greater than zero.");
             return;
         }
 
@@ -188,7 +179,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
 
         try {
             await inventoryService.restockInventory(selectedItem.id, Number(restockQuantity), Number(restockUnitPrice));
-            setSuccessMessage(`Restocked ${selectedItem.name} successfully! Valuation updated.`);
+            setSuccessMessage(`Restocked ${selectedItem.name} successfully! New cost calculated.`);
             setShowRestockModal(false);
             setSelectedItem(null);
             setRestockQuantity('');
@@ -221,112 +212,102 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
     return (
         <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-12">
             
-            {/* Header Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-farma-forest/10 pb-5">
                 <div>
-                    <h3 className="text-2xl md:text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
-                        {isProprietor ? 'Warehouse Supply & Material Ledger' : 'Site Warehouse & Consumables'}
+                    <h3 className="text-2xl md:text-3xl font-bold text-farma-forest tracking-tight">
+                        {isProprietor ? 'Farm Inventory & Supplies' : 'My Farm Inventory'}
                     </h3>
-                    <p className="text-sm text-[#101B14]/70 font-medium mt-1">
-                        Segmented stock management for feeds, vaccines, medication, and operational tools per farm site.
+                    <p className="text-sm text-farma-forest/70 font-medium mt-1">
+                        Manage your feed, vaccines, medication, and equipment for each farm location.
                     </p>
                 </div>
 
                 <button
                     type="button"
                     onClick={() => setShowAddModal(true)}
-                    className="px-5 py-3 rounded-lg bg-[#101B14] hover:bg-[#2A5C38] text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center space-x-2 cursor-pointer shrink-0"
+                    className="px-5 py-3 rounded-lg bg-farma-forest hover:bg-farma-green-light text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 cursor-pointer shrink-0"
                 >
-                    <span>📦 Onboard New Material</span>
+                    <IconBoxPlus />
+                    <span>Add New Item</span>
                 </button>
             </div>
 
-            {/* Alerts */}
             {errorMessage && (
-                <div className="p-4 rounded-xl bg-[#E76F51]/10 border border-[#E76F51]/30 text-[#E76F51] text-xs font-bold shadow-sm">
+                <div className="p-4 rounded-lg bg-farma-terracotta/10 border border-farma-terracotta/30 text-farma-terracotta text-sm font-semibold shadow-sm flex items-center gap-2">
+                    <IconError />
                     {errorMessage}
                 </div>
             )}
             {successMessage && (
-                <div className="p-4 rounded-xl bg-[#2A5C38]/10 border border-[#2A5C38]/30 text-[#2A5C38] text-xs font-bold shadow-sm flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                <div className="p-4 rounded-lg bg-farma-green/10 border border-farma-green/30 text-farma-green text-sm font-semibold shadow-sm flex items-center gap-2">
+                    <IconCheck />
                     {successMessage}
                 </div>
             )}
 
-            {/* KPI Summary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Farm Facility Picker */}
-                <div className="bg-[#ECE6D6] border border-[#101B14]/10 rounded-xl p-5 shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block mb-2">
-                        Active Farm Facility
+                <div className="bg-farma-sand border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block mb-2">
+                        Select Farm
                     </span>
                     <select
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(Number(e.target.value))}
                         disabled={!isProprietor && farms.length <= 1}
-                        className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm cursor-pointer appearance-none disabled:opacity-50"
-                        style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                        className="w-full px-3 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-xs font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer disabled:opacity-50"
                     >
                         {farms.map((f) => (
-                            <option key={f.id} value={f.id}>🏢 {f.name}</option>
+                            <option key={f.id} value={f.id}>{f.name}</option>
                         ))}
                     </select>
                 </div>
 
-                {/* Total Valuation */}
-                <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block">
-                        Facility Asset Valuation
+                <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block">
+                        Total Stock Value
                     </span>
-                    <div className="text-2xl font-extrabold text-[#2A5C38] mt-2 font-mono">
+                    <div className="text-2xl font-bold text-farma-green mt-2 tabular-nums">
                         ₦{totalValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                 </div>
 
-                {/* Stock Breakdown */}
-                <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block">
-                        Consumable Stock Count
+                <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block">
+                        Total Items
                     </span>
-                    <div className="text-2xl font-extrabold text-[#101B14] mt-2 font-mono">
-                        {feedCount} <span className="text-sm text-[#101B14]/50 font-sans">Feeds</span> / {medCount} <span className="text-sm text-[#101B14]/50 font-sans">Meds</span>
+                    <div className="text-2xl font-bold text-farma-forest mt-2 tabular-nums">
+                        {feedCount} <span className="text-sm text-farma-forest/50 font-semibold">Feeds</span> / {medCount} <span className="text-sm text-farma-forest/50 font-semibold">Meds</span>
                     </div>
                 </div>
 
-                {/* Low Stock Alerts */}
-                <div className="bg-white border border-[#101B14]/10 rounded-xl p-5 shadow-xs flex flex-col justify-center">
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/60 uppercase tracking-widest block">
-                        Low-Stock Alerts
+                <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block">
+                        Low Stock Warnings
                     </span>
-                    <div className="text-2xl font-extrabold text-[#E76F51] mt-2 font-mono">
-                        {lowStockAlerts} <span className="text-sm font-sans font-bold">Items Critical</span>
+                    <div className="text-2xl font-bold text-farma-terracotta mt-2 tabular-nums">
+                        {lowStockAlerts} <span className="text-sm font-semibold">Items Low</span>
                     </div>
                 </div>
             </div>
 
-            {/* CATEGORY WORKSPACE NAVIGATION TABS */}
-            <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl p-5 shadow-xs space-y-5">
+            <div className="bg-farma-cream border border-farma-forest/10 rounded-xl p-5 shadow-sm space-y-5">
                 
-                {/* Navigation Tabs */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#101B14]/10 pb-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-farma-forest/10 pb-5">
                     <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
                         {(['ALL', 'FEED', 'MEDICINE', 'EQUIPMENT', 'OTHER'] as const).map((cat) => {
                             const isActive = activeCategory === cat;
                             const count = cat === 'ALL' ? inventories.length : cat === 'FEED' ? feedCount : cat === 'MEDICINE' ? medCount : inventories.filter(i => i.category === cat).length;
-                            const label = cat === 'ALL' ? 'All Items' : cat === 'FEED' ? '🌾 Feed' : cat === 'MEDICINE' ? '💊 Meds/Vax' : cat === 'EQUIPMENT' ? '🚜 Equip' : '📦 Other';
+                            const label = cat === 'ALL' ? 'All Items' : cat === 'FEED' ? 'Feed' : cat === 'MEDICINE' ? 'Meds/Vax' : cat === 'EQUIPMENT' ? 'Equipment' : 'Other';
 
                             return (
                                 <button
                                     key={cat}
                                     type="button"
                                     onClick={() => setActiveCategory(cat)}
-                                    className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shrink-0 ${
                                         isActive
-                                            ? 'bg-[#101B14] text-[#FBF9F5] shadow-md'
-                                            : 'bg-white border border-[#101B14]/10 text-[#101B14]/60 hover:bg-[#101B14]/5 hover:text-[#101B14]'
+                                            ? 'bg-farma-forest text-farma-cream shadow-sm'
+                                            : 'bg-white border border-farma-forest/10 text-farma-forest/60 hover:bg-farma-forest/5 hover:text-farma-forest'
                                     }`}
                                 >
                                     {label} ({count})
@@ -335,41 +316,36 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                         })}
                     </div>
 
-                    {/* Low Stock Toggle */}
                     <button
                         type="button"
                         onClick={() => setOnlyLowStock(!onlyLowStock)}
-                        className={`px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-all cursor-pointer shrink-0 ${
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors cursor-pointer shrink-0 ${
                             onlyLowStock
-                                ? 'bg-[#E76F51]/10 text-[#E76F51] border-[#E76F51]/30 shadow-sm'
-                                : 'bg-white text-[#101B14]/60 border-[#101B14]/10 hover:bg-[#101B14]/5 hover:text-[#101B14]'
+                                ? 'bg-farma-terracotta/10 text-farma-terracotta border-farma-terracotta/30 shadow-sm'
+                                : 'bg-white text-farma-forest/60 border-farma-forest/10 hover:bg-farma-forest/5 hover:text-farma-forest'
                         }`}
                     >
-                        {onlyLowStock ? '⚠️ Low Stock Active' : 'Filter Low Stock'}
+                        {onlyLowStock ? 'Low Stock Active' : 'Filter Low Stock'}
                     </button>
                 </div>
 
-                {/* Search Bar */}
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-[#101B14]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                        <IconSearch />
                     </div>
                     <input
                         type="text"
                         placeholder="Search stock items by name..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3.5 rounded-lg bg-white border border-[#101B14]/15 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm"
+                        className="w-full pl-11 pr-4 py-3 rounded-lg bg-white border border-farma-forest/15 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm"
                     />
                 </div>
 
-                {/* DETAILED MATERIAL STOCK LEDGER CARDS GRID */}
                 {loading ? (
-                    <div className="py-16 text-center text-[#101B14]/40 font-mono text-xs font-bold uppercase tracking-widest flex flex-col items-center">
-                        <div className="w-10 h-10 border-4 border-[#2A5C38]/20 border-t-[#2A5C38] rounded-full animate-spin mb-4"></div>
-                        Loading warehouse ledgers...
+                    <div className="py-16 text-center text-farma-forest/40 text-xs font-semibold uppercase tracking-widest flex flex-col items-center">
+                        <div className="w-10 h-10 border-4 border-farma-green/20 border-t-farma-green rounded-full animate-spin mb-4"></div>
+                        Loading inventory...
                     </div>
                 ) : filteredInventories.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 pt-2">
@@ -379,70 +355,66 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                             return (
                                 <div
                                     key={item.id}
-                                    className={`bg-white border rounded-xl p-6 shadow-xs flex flex-col justify-between transition-all duration-300 hover:shadow-md ${
-                                        item.isLowStock ? 'border-[#E76F51]/30 bg-[#E76F51]/5' : 'border-[#101B14]/10'
+                                    className={`bg-white border rounded-xl p-6 shadow-sm flex flex-col justify-between transition-shadow hover:shadow-md ${
+                                        item.isLowStock ? 'border-farma-terracotta/30 bg-farma-terracotta/5' : 'border-farma-forest/10'
                                     }`}
                                 >
-                                    {/* Card Header */}
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="pr-2">
-                                            <span className="text-[9px] font-mono font-extrabold text-[#101B14]/50 uppercase tracking-widest block mb-1">
+                                            <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest block mb-1">
                                                 {item.category}
                                             </span>
-                                            <h4 className="text-lg font-extrabold text-[#101B14] leading-tight font-['Fraunces',serif]">
+                                            <h4 className="text-lg font-bold text-farma-forest leading-tight">
                                                 {item.name}
                                             </h4>
                                         </div>
                                         {item.isLowStock ? (
-                                            <span className="px-2.5 py-1 rounded-md bg-[#E76F51]/10 text-[#E76F51] border border-[#E76F51]/20 text-[9px] font-extrabold uppercase tracking-wider shrink-0">
+                                            <span className="px-2.5 py-1 rounded-md bg-farma-terracotta/10 text-farma-terracotta border border-farma-terracotta/20 text-[10px] font-bold uppercase tracking-wider shrink-0">
                                                 Low Stock
                                             </span>
                                         ) : (
-                                            <span className="px-2.5 py-1 rounded-md bg-[#2A5C38]/10 text-[#2A5C38] border border-[#2A5C38]/20 text-[9px] font-extrabold uppercase tracking-wider shrink-0">
+                                            <span className="px-2.5 py-1 rounded-md bg-farma-green/10 text-farma-green border border-farma-green/20 text-[10px] font-bold uppercase tracking-wider shrink-0">
                                                 Normal
                                             </span>
                                         )}
                                     </div>
 
-                                    {/* Quantity Visual Bar */}
                                     <div className="space-y-2 mb-5">
                                         <div className="flex justify-between items-end">
-                                            <span className="text-[10px] font-bold text-[#101B14]/60 uppercase tracking-wider">Balance</span>
-                                            <span className="text-xl font-extrabold text-[#101B14] font-mono">
-                                                {item.currentQuantity.toLocaleString()} <span className="text-sm font-sans text-[#101B14]/50">Units</span>
+                                            <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-wider">Current Stock</span>
+                                            <span className="text-xl font-bold text-farma-forest tabular-nums">
+                                                {item.currentQuantity.toLocaleString()} <span className="text-sm font-semibold text-farma-forest/50">Units</span>
                                             </span>
                                         </div>
-                                        <div className="w-full bg-[#101B14]/5 rounded-full h-2 overflow-hidden border border-[#101B14]/5">
+                                        <div className="w-full bg-farma-forest/5 rounded-full h-2 overflow-hidden border border-farma-forest/5">
                                             <div
-                                                className={`h-full rounded-full transition-all duration-500 ${item.isLowStock ? 'bg-[#E76F51]' : 'bg-[#2A5C38]'}`}
-                                                style={{ width: `${Math.max(stockRatio, 2)}%` }} // Minimum 2% width so it's always visible
+                                                className={`h-full rounded-full transition-all duration-500 ${item.isLowStock ? 'bg-farma-terracotta' : 'bg-farma-green'}`}
+                                                style={{ width: `${Math.max(stockRatio, 2)}%` }}
                                             />
                                         </div>
-                                        <div className="text-[9px] font-mono font-bold text-[#101B14]/40 text-right">
-                                            Threshold: {item.lowStockThreshold} Units
+                                        <div className="text-[10px] font-bold text-farma-forest/40 text-right tabular-nums">
+                                            Warning At: {item.lowStockThreshold} Units
                                         </div>
                                     </div>
 
-                                    {/* Financial Details */}
-                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#101B14]/10 mb-4">
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-farma-forest/10 mb-4">
                                         <div>
-                                            <span className="text-[9px] font-extrabold text-[#101B14]/50 uppercase tracking-widest block mb-0.5">Unit Price (WAC)</span>
-                                            <span className="font-bold text-[#101B14] font-mono text-sm">
+                                            <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest block mb-0.5">Average Cost per Unit</span>
+                                            <span className="font-bold text-farma-forest tabular-nums text-sm">
                                                 ₦{Number(item.unitPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-[9px] font-extrabold text-[#101B14]/50 uppercase tracking-widest block mb-0.5">Total Value</span>
-                                            <span className="font-extrabold text-[#2A5C38] font-mono text-sm">
+                                            <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest block mb-0.5">Total Value</span>
+                                            <span className="font-bold text-farma-green tabular-nums text-sm">
                                                 ₦{(item.totalValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Footer & Actions */}
-                                    <div className="flex items-center justify-between pt-4 border-t border-[#101B14]/10">
-                                        <span className="text-[10px] font-mono font-bold text-[#101B14]/50">
-                                            Exp: <span className="text-[#101B14]/80">{item.expiryDate || 'N/A'}</span>
+                                    <div className="flex items-center justify-between pt-4 border-t border-farma-forest/10">
+                                        <span className="text-[10px] font-bold text-farma-forest/50 tabular-nums uppercase tracking-widest">
+                                            Exp: <span className="text-farma-forest/80">{item.expiryDate || 'N/A'}</span>
                                         </span>
 
                                         <div className="flex items-center gap-2">
@@ -454,9 +426,9 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                                     setErrorMessage(null);
                                                     setShowAdjustModal(true);
                                                 }}
-                                                className="px-3 py-2 rounded-md bg-white border border-[#101B14]/15 hover:border-[#E76F51] hover:bg-[#E76F51]/10 text-[#101B14] hover:text-[#E76F51] text-[10px] font-extrabold uppercase tracking-widest cursor-pointer transition-all shadow-sm"
+                                                className="px-3 py-2 rounded-md bg-white border border-farma-forest/15 hover:border-farma-terracotta hover:bg-farma-terracotta/10 text-farma-forest hover:text-farma-terracotta text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
                                             >
-                                                ⚖️ Adjust
+                                                <IconAdjust /> Adjust
                                             </button>
                                             <button
                                                 type="button"
@@ -467,9 +439,9 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                                     setErrorMessage(null);
                                                     setShowRestockModal(true);
                                                 }}
-                                                className="px-3 py-2 rounded-md bg-[#2A5C38]/10 border border-[#2A5C38]/20 hover:bg-[#2A5C38] text-[#2A5C38] hover:text-white text-[10px] font-extrabold uppercase tracking-widest cursor-pointer transition-all shadow-sm"
+                                                className="px-3 py-2 rounded-md bg-farma-green/10 border border-farma-green/20 hover:bg-farma-green text-farma-green hover:text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
                                             >
-                                                🛒 Restock
+                                                <IconCart /> Restock
                                             </button>
                                         </div>
                                     </div>
@@ -478,83 +450,75 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                         })}
                     </div>
                 ) : (
-                    <div className="py-20 text-center flex flex-col items-center justify-center bg-white border border-[#101B14]/10 rounded-xl mt-2">
-                        <div className="w-16 h-16 rounded-full bg-[#ECE6D6] flex items-center justify-center text-[#101B14]/30 mb-4 shadow-inner">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
+                    <div className="py-20 text-center flex flex-col items-center justify-center bg-white border border-farma-forest/10 rounded-xl mt-2">
+                        <div className="w-16 h-16 rounded-full bg-farma-sand flex items-center justify-center text-farma-forest/30 mb-4 shadow-inner">
+                            <IconEmptyState />
                         </div>
-                        <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif]">No Inventory Found</h4>
-                        <span className="text-sm text-[#101B14]/50 mt-1">No stock items found under "{activeCategory}" matching your criteria.</span>
+                        <h4 className="text-lg font-bold text-farma-forest">No Items Found</h4>
+                        <span className="text-sm text-farma-forest/50 mt-1">No stock items found under "{activeCategory}" matching your criteria.</span>
                     </div>
                 )}
             </div>
 
-            {/* Onboard Inventory Modal (Unchanged) */}
             {showAddModal && (
-                 /* ... Keep your existing Add Modal perfectly intact ... */
-                 <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
-                    <div className="bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl max-w-lg w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
+                 <div className="fixed inset-0 bg-farma-forest/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-farma-cream border border-farma-forest/10 rounded-xl max-w-lg w-full shadow-2xl flex flex-col max-h-[95vh] relative overflow-hidden">
                         
-                        <div className="h-2 w-full bg-[#101B14] relative shrink-0 shadow-sm"></div>
+                        <div className="h-1.5 w-full bg-farma-forest relative shrink-0 shadow-sm"></div>
 
-                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                        <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Onboard Material</h4>
-                                <p className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest mt-1.5">
-                                    Register new stock items
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Add New Item</h4>
+                                <p className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mt-1">
+                                    Add feed, medicine, or tools
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowAddModal(false)}
-                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                className="text-farma-forest/40 hover:text-farma-terracotta hover:bg-farma-terracotta/10 bg-farma-forest/5 transition-colors p-2 rounded-lg cursor-pointer"
                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                <IconClose />
                             </button>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
                             <form id="onboard-form" onSubmit={handleCreateInventory} className="space-y-5">
                                 <div>
-                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Item Name *</label>
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Item Name *</label>
                                     <input
                                         type="text"
                                         required
-                                        placeholder="e.g. Cobb Broiler Finisher Mash"
+                                        placeholder="e.g. Starter Feed Mash"
                                         value={itemForm.name}
                                         onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                                        className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm"
+                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Category *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Category *</label>
                                         <select
                                             value={itemForm.category}
                                             onChange={(e) => setItemForm({ ...itemForm, category: e.target.value as InventoryCategory })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm appearance-none cursor-pointer"
-                                            style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer"
                                         >
-                                            <option value="FEED">🌾 Feed Stock</option>
-                                            <option value="MEDICINE">💊 Medicine</option>
-                                            <option value="VACCINE">🧪 Vaccine</option>
-                                            <option value="EQUIPMENT">🚜 Equipment</option>
-                                            <option value="OTHER">📦 Other Resource</option>
+                                            <option value="FEED">Feed</option>
+                                            <option value="MEDICINE">Medicine</option>
+                                            <option value="VACCINE">Vaccine</option>
+                                            <option value="EQUIPMENT">Equipment</option>
+                                            <option value="OTHER">Other</option>
                                         </select>
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Target Farm *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Farm Location *</label>
                                         <select
                                             value={itemForm.farmId}
                                             onChange={(e) => setItemForm({ ...itemForm, farmId: Number(e.target.value) })}
                                             disabled={!isProprietor}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm appearance-none cursor-pointer disabled:opacity-50"
-                                            style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23101B14' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer disabled:opacity-50"
                                         >
                                             {farms.map((f) => (
                                                 <option key={f.id} value={f.id}>{f.name}</option>
@@ -565,74 +529,74 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
 
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Initial Qty *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Initial Qty *</label>
                                         <input
                                             type="number"
                                             required
                                             min="0"
                                             value={itemForm.quantity}
                                             onChange={(e) => setItemForm({ ...itemForm, quantity: Number(e.target.value) })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Unit *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Unit *</label>
                                         <input
                                             type="text"
                                             required
                                             placeholder="bags/kg"
                                             value={itemForm.unit}
                                             onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Price (₦) *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Price (₦) *</label>
                                         <input
                                             type="number"
                                             required
                                             min="0"
                                             value={itemForm.unitPrice}
                                             onChange={(e) => setItemForm({ ...itemForm, unitPrice: Number(e.target.value) })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Low Stock Trigger *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Low Stock Warning At *</label>
                                         <input
                                             type="number"
                                             required
                                             min="0"
                                             value={itemForm.lowStockThreshold}
                                             onChange={(e) => setItemForm({ ...itemForm, lowStockThreshold: Number(e.target.value) })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">Expiry Date *</label>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Expiry Date *</label>
                                         <input
                                             type="date"
                                             required
                                             value={itemForm.expiryDate}
                                             onChange={(e) => setItemForm({ ...itemForm, expiryDate: e.target.value })}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
                                 </div>
                             </form>
                         </div>
 
-                        <div className="p-5 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex items-center justify-end gap-3 z-10">
+                        <div className="p-5 bg-farma-sand border-t border-farma-forest/10 shrink-0 flex items-center justify-end gap-3 z-10">
                             <button
                                 type="button"
                                 onClick={() => setShowAddModal(false)}
-                                className="px-5 py-3.5 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                className="px-5 py-3 rounded-lg bg-transparent hover:bg-farma-forest/5 text-farma-forest/60 hover:text-farma-forest font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -640,72 +604,71 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                 type="submit"
                                 form="onboard-form"
                                 disabled={submitting}
-                                className="px-6 py-3.5 rounded-lg bg-[#101B14] hover:bg-[#2A5C38] text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                className="px-6 py-3 rounded-lg bg-farma-forest hover:bg-farma-green-light text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
                             >
-                                {submitting ? 'Saving...' : 'Register Item'}
+                                {submitting ? 'Saving...' : 'Save Item'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal 1: MANUAL ADJUSTMENT (Spoilage, Loss, Errors) */}
             {showAdjustModal && selectedItem && (
-                <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
-                    <div className="bg-[#FBF9F5] border border-[#101B14]/20 rounded-xl max-w-sm w-full shadow-2xl flex flex-col relative overflow-hidden">
+                <div className="fixed inset-0 bg-farma-forest/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-farma-cream border border-farma-forest/20 rounded-xl max-w-sm w-full shadow-2xl flex flex-col relative overflow-hidden">
                         
-                        <div className="h-2 w-full bg-[#E76F51] relative shrink-0 shadow-sm"></div>
+                        <div className="h-1.5 w-full bg-farma-terracotta relative shrink-0 shadow-sm"></div>
 
-                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                        <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Manual Adjustment</h4>
-                                <p className="text-[10px] font-mono font-bold text-[#E76F51] uppercase tracking-widest mt-1.5 truncate max-w-[200px]">
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Adjust Stock Level</h4>
+                                <p className="text-[10px] font-bold text-farma-terracotta uppercase tracking-widest mt-1 truncate max-w-[200px]">
                                     {selectedItem.name}
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowAdjustModal(false)}
-                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                className="text-farma-forest/40 hover:text-farma-terracotta hover:bg-farma-terracotta/10 bg-farma-forest/5 transition-colors p-2 rounded-lg cursor-pointer"
                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                <IconClose />
                             </button>
                         </div>
 
                         <div className="p-6 bg-white overflow-y-auto">
                             <form id="adjust-form" onSubmit={handleAdjustStock} className="space-y-6">
-                                <div className="bg-[#FBF9F5] p-4 rounded-xl border border-[#101B14]/10 flex flex-col items-center text-center">
-                                    <span className="text-[10px] font-extrabold text-[#101B14]/50 uppercase tracking-widest mb-1">Current Balance</span>
-                                    <span className="text-3xl font-extrabold text-[#101B14] font-mono">
-                                        {selectedItem.currentQuantity.toLocaleString()} <span className="text-sm text-[#101B14]/50 font-sans">Units</span>
+                                <div className="bg-farma-cream p-4 rounded-xl border border-farma-forest/10 flex flex-col items-center text-center">
+                                    <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mb-1">Current Stock</span>
+                                    <span className="text-3xl font-bold text-farma-forest tabular-nums">
+                                        {selectedItem.currentQuantity.toLocaleString()} <span className="text-sm text-farma-forest/50 font-semibold">Units</span>
                                     </span>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">
-                                        Adjustment Amount (+ or -) *
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                        Amount to Add or Remove *
                                     </label>
                                     <input
                                         type="number"
                                         step="0.1"
                                         required
-                                        placeholder="-5 (Spoilage) or +2 (Found)"
+                                        placeholder="e.g. -5 or +2"
                                         value={adjustAmount === '' ? '' : adjustAmount}
                                         onChange={(e) => setAdjustAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                                        className="w-full px-4 py-4 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-lg font-bold focus:outline-none focus:border-[#E76F51] focus:ring-2 focus:ring-[#E76F51]/30 transition-all shadow-sm font-mono text-center"
+                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-lg font-bold focus:outline-none focus:ring-2 focus:ring-farma-terracotta/30 transition-shadow shadow-sm tabular-nums text-center"
                                     />
-                                    <p className="text-[10px] font-bold text-[#101B14]/40 mt-2 text-center">
-                                        New balance will be: <span className="font-mono text-[#101B14]/70">{(selectedItem.currentQuantity + Number(adjustAmount || 0)).toLocaleString()}</span>
+                                    <p className="text-[10px] font-bold text-farma-forest/40 mt-2 text-center uppercase tracking-widest tabular-nums">
+                                        New stock will be: <span className="text-farma-forest/70">{(selectedItem.currentQuantity + Number(adjustAmount || 0)).toLocaleString()}</span>
                                     </p>
                                 </div>
                             </form>
                         </div>
 
-                        <div className="p-5 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
+                        <div className="p-5 bg-farma-sand border-t border-farma-forest/10 shrink-0 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
                             <button
                                 type="button"
                                 onClick={() => setShowAdjustModal(false)}
-                                className="w-full sm:w-auto px-5 py-3.5 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                className="w-full sm:w-auto px-5 py-3 rounded-lg bg-transparent hover:bg-farma-forest/5 text-farma-forest/60 hover:text-farma-forest font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -713,62 +676,59 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                 type="submit"
                                 form="adjust-form"
                                 disabled={submitting || adjustAmount === '' || adjustAmount === 0}
-                                className="w-full sm:w-auto px-6 py-3.5 rounded-lg bg-[#E76F51] hover:bg-[#d45d40] text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg bg-farma-terracotta hover:bg-[#c6583d] text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
                             >
-                                {submitting ? 'Applying...' : 'Apply Correction'}
+                                {submitting ? 'Updating...' : 'Update Stock'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal 2: COMMERCIAL RESTOCK (Updates WAC) */}
             {showRestockModal && selectedItem && (
-                <div className="fixed inset-0 bg-[#101B14]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
-                    <div className="bg-[#FBF9F5] border border-[#2A5C38]/40 rounded-xl max-w-md w-full shadow-2xl flex flex-col relative overflow-hidden">
+                <div className="fixed inset-0 bg-farma-forest/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-farma-cream border border-farma-green/40 rounded-xl max-w-md w-full shadow-2xl flex flex-col relative overflow-hidden">
                         
-                        <div className="h-2 w-full bg-[#2A5C38] relative shrink-0 shadow-sm"></div>
+                        <div className="h-1.5 w-full bg-farma-green relative shrink-0 shadow-sm"></div>
 
-                        <div className="flex items-center justify-between border-b border-[#101B14]/10 p-6 bg-white shrink-0">
+                        <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight">Commercial Restock</h4>
-                                <p className="text-[10px] font-mono font-bold text-[#2A5C38] uppercase tracking-widest mt-1.5 truncate max-w-[250px]">
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Restock Item</h4>
+                                <p className="text-[10px] font-bold text-farma-green uppercase tracking-widest mt-1 truncate max-w-[250px]">
                                     {selectedItem.name}
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowRestockModal(false)}
-                                className="text-[#101B14]/40 hover:text-[#E76F51] hover:bg-[#E76F51]/10 bg-[#101B14]/5 transition-all p-2 rounded-full cursor-pointer"
+                                className="text-farma-forest/40 hover:text-farma-terracotta hover:bg-farma-terracotta/10 bg-farma-forest/5 transition-colors p-2 rounded-lg cursor-pointer"
                             >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                <IconClose />
                             </button>
                         </div>
 
                         <div className="p-6 bg-white overflow-y-auto">
                             <form id="restock-form" onSubmit={handleRestock} className="space-y-6">
                                 
-                                {/* Read-Only Current State */}
-                                <div className="grid grid-cols-2 gap-4 bg-[#FBF9F5] p-4 rounded-xl border border-[#101B14]/10 text-center">
+                                <div className="grid grid-cols-2 gap-4 bg-farma-cream p-4 rounded-xl border border-farma-forest/10 text-center">
                                     <div>
-                                        <span className="text-[9px] font-extrabold text-[#101B14]/50 uppercase tracking-widest mb-1 block">Current Stock</span>
-                                        <span className="text-xl font-extrabold text-[#101B14] font-mono">
+                                        <span className="text-[9px] font-bold text-farma-forest/50 uppercase tracking-widest mb-1 block">Current Stock</span>
+                                        <span className="text-xl font-bold text-farma-forest tabular-nums">
                                             {selectedItem.currentQuantity.toLocaleString()}
                                         </span>
                                     </div>
-                                    <div className="border-l border-[#101B14]/10">
-                                        <span className="text-[9px] font-extrabold text-[#101B14]/50 uppercase tracking-widest mb-1 block">Current WAC</span>
-                                        <span className="text-xl font-extrabold text-[#101B14] font-mono">
+                                    <div className="border-l border-farma-forest/10">
+                                        <span className="text-[9px] font-bold text-farma-forest/50 uppercase tracking-widest mb-1 block">Current Cost</span>
+                                        <span className="text-xl font-bold text-farma-forest tabular-nums">
                                             ₦{Number(selectedItem.unitPrice || 0).toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    {/* Added Quantity Input */}
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">
-                                            Added Quantity *
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                            Quantity Bought *
                                         </label>
                                         <input
                                             type="number"
@@ -778,14 +738,13 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                             placeholder="e.g. 50"
                                             value={restockQuantity === '' ? '' : restockQuantity}
                                             onChange={(e) => setRestockQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
                                     
-                                    {/* New Price Input */}
                                     <div>
-                                        <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#101B14]/70 mb-2">
-                                            New Unit Price (₦) *
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                            Price per Unit (₦) *
                                         </label>
                                         <input
                                             type="number"
@@ -795,17 +754,16 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                             placeholder="e.g. 12500"
                                             value={restockUnitPrice === '' ? '' : restockUnitPrice}
                                             onChange={(e) => setRestockUnitPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                                            className="w-full px-4 py-3.5 rounded-lg bg-white border border-[#101B14]/20 text-[#101B14] text-sm font-bold focus:outline-none focus:border-[#2A5C38] focus:ring-2 focus:ring-[#2A5C38]/30 transition-all shadow-sm font-mono"
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm tabular-nums"
                                         />
                                     </div>
                                 </div>
                                 
-                                {/* Preview Restock Total */}
                                 {restockQuantity !== '' && restockUnitPrice !== '' && (
                                     <div className="pt-2">
-                                        <div className="p-3 bg-[#2A5C38]/10 rounded-lg flex justify-between items-center border border-[#2A5C38]/20">
-                                            <span className="text-[10px] font-bold text-[#2A5C38] uppercase tracking-wider">Purchase Cost Preview</span>
-                                            <span className="font-extrabold text-[#2A5C38] font-mono">
+                                        <div className="p-3 bg-farma-green/10 rounded-lg flex justify-between items-center border border-farma-green/20">
+                                            <span className="text-[10px] font-bold text-farma-green uppercase tracking-wider">Total Cost Preview</span>
+                                            <span className="font-bold text-farma-green tabular-nums">
                                                 ₦{(Number(restockQuantity) * Number(restockUnitPrice)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
@@ -814,11 +772,11 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                             </form>
                         </div>
 
-                        <div className="p-5 bg-[#ECE6D6] border-t border-[#101B14]/10 shrink-0 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
+                        <div className="p-5 bg-farma-sand border-t border-farma-forest/10 shrink-0 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
                             <button
                                 type="button"
                                 onClick={() => setShowRestockModal(false)}
-                                className="w-full sm:w-auto px-5 py-3.5 rounded-lg bg-transparent hover:bg-[#101B14]/5 text-[#101B14]/60 hover:text-[#101B14] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                                className="w-full sm:w-auto px-5 py-3 rounded-lg bg-transparent hover:bg-farma-forest/5 text-farma-forest/60 hover:text-farma-forest font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                             >
                                 Cancel
                             </button>
@@ -826,9 +784,9 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                 type="submit"
                                 form="restock-form"
                                 disabled={submitting || restockQuantity === '' || restockUnitPrice === '' || Number(restockQuantity) <= 0 || Number(restockUnitPrice) <= 0}
-                                className="w-full sm:w-auto px-6 py-3.5 rounded-lg bg-[#2A5C38] hover:bg-[#20472b] text-white font-extrabold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg bg-farma-green hover:bg-farma-green-light text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
                             >
-                                {submitting ? 'Processing...' : 'Complete Restock'}
+                                {submitting ? 'Processing...' : 'Save Restock'}
                             </button>
                         </div>
                     </div>
@@ -837,3 +795,55 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         </div>
     );
 };
+
+// ==========================================
+// Reusable SVG Components
+// ==========================================
+
+const IconBoxPlus = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4M12 22V12m0 0V2m0 10h10M12 12H2" />
+    </svg>
+);
+
+const IconError = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
+const IconCheck = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+    </svg>
+);
+
+const IconSearch = () => (
+    <svg className="w-4 h-4 text-farma-forest/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+);
+
+const IconAdjust = () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+    </svg>
+);
+
+const IconCart = () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+);
+
+const IconClose = () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+);
+
+const IconEmptyState = () => (
+    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+);

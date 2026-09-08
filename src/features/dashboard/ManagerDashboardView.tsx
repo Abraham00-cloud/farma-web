@@ -52,12 +52,12 @@ interface FinancialCashFlowDto {
 }
 
 const THEME = {
-    forest: '#101B14',
-    cream: '#FBF9F5',
-    green: '#2A5C38',
-    gold: '#D9A63E',
-    terracotta: '#E76F51',
-    lightGray: '#ECE6D6'
+    forest: 'var(--color-farma-forest)',
+    cream: 'var(--color-farma-cream)',
+    green: 'var(--color-farma-green)',
+    gold: 'var(--color-farma-gold)',
+    terracotta: 'var(--color-farma-terracotta)',
+    lightGray: 'var(--color-farma-sand)'
 };
 
 export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
@@ -156,7 +156,7 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                         }
                     }
                 } catch {
-                    console.warn("Company cashflow endpoint failed, attempting farm-level fallback...");
+                    console.debug("Company cashflow endpoint failed, attempting farm-level fallback...");
                 }
 
                 if (rev === 0 && exp === 0 && farmIds.length > 0) {
@@ -216,18 +216,15 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                 ]);
             }
 
-            // 🟢 FIX: Dynamic Current Month Calculation!
-            const currentMonth = new Date().toLocaleString('default', { month: 'short' }); // Resolves to "Aug"
+            const currentMonth = new Date().toLocaleString('default', { month: 'short' });
 
             if (realMonthlyBreakdown.length > 0) {
                 setCashflowData(realMonthlyBreakdown);
             } else if (rev > 0 || exp > 0) {
-                // If backend provides no array but we aggregated the data, dump all the real money into the actual current month
                 setCashflowData([
                     { month: currentMonth, Income: rev, Expense: exp }
                 ]);
             } else {
-                // If the entire farm is broke, just show 0 for the current month
                 setCashflowData([
                     { month: currentMonth, Income: 0, Expense: 0 }
                 ]);
@@ -250,8 +247,8 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
     if (loading) {
         return (
             <div className="py-32 flex flex-col items-center justify-center space-y-4 font-sans">
-                <div className="w-12 h-12 border-4 border-[#2A5C38]/20 border-t-[#2A5C38] rounded-full animate-spin"></div>
-                <p className="text-xs font-mono font-bold text-[#101B14]/60 uppercase tracking-widest">Compiling Enterprise Telemetry...</p>
+                <div className="w-10 h-10 border-4 border-farma-green/20 border-t-farma-green rounded-full animate-spin"></div>
+                <p className="text-xs font-bold text-farma-forest/60 uppercase tracking-widest">Loading farm data...</p>
             </div>
         );
     }
@@ -259,139 +256,143 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
             
-            {/* 1. DYNAMIC HEADER */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b-2 border-[#101B14]/10 pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-farma-forest/10 pb-5">
                 <div>
-                    <h3 className="text-3xl font-extrabold text-[#101B14] tracking-tight font-['Fraunces',serif]">
-                        {isProprietor ? 'Global Enterprise Overview' : 'Site Operations Command'}
+                    <h3 className="text-2xl font-bold text-farma-forest tracking-tight">
+                        {isProprietor ? 'All Farms Overview' : 'My Farm Dashboard'}
                     </h3>
-                    <p className="text-sm text-[#101B14]/70 font-medium mt-1">
+                    <p className="text-sm text-farma-forest/70 font-medium mt-1">
                         {isProprietor 
-                            ? 'Aggregated financial health, biological assets, and network-wide alerts.' 
-                            : 'Real-time pen monitoring, local inventory stock, and daily telemetry tracking.'}
+                            ? 'Track income, live birds, and health alerts across all your farms.' 
+                            : 'Monitor your pens, stock, and daily farm updates.'}
                     </p>
                 </div>
                 
                 <div className="flex items-center space-x-3 shrink-0">
                     <button
                         onClick={bootDashboard}
-                        className="px-3 py-1.5 rounded-lg bg-white border border-[#101B14]/15 hover:bg-[#101B14]/5 text-[#101B14] text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                        title="Sync Dashboard Data"
+                        className="px-4 py-2 rounded-md bg-white border border-farma-forest/15 hover:bg-farma-forest/5 text-farma-forest text-xs font-bold transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
+                        title="Sync Data"
                     >
-                        🔄 <span className="font-mono text-[10px] uppercase">Sync Radar</span>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span className="text-[10px] uppercase tracking-wider">Sync Data</span>
                     </button>
 
-                    <span className="flex h-3 w-3 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2A5C38] opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#2A5C38]"></span>
-                    </span>
-                    <span className="text-[10px] font-mono font-bold text-[#2A5C38] uppercase tracking-widest bg-[#2A5C38]/10 border border-[#2A5C38]/20 px-3 py-1.5 rounded-full">
-                        {isProprietor ? 'Global Access' : `Scope: Farm Manager`}
+                    <span className="flex items-center gap-2 bg-farma-green/10 border border-farma-green/20 px-3 py-1.5 rounded-md">
+                        <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-farma-green opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-farma-green"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-farma-green uppercase tracking-widest">
+                            {isProprietor ? 'Access: All Farms' : 'Access: Assigned Farm'}
+                        </span>
                     </span>
                 </div>
             </div>
 
-            {/* 2. DYNAMIC KPI STRIP */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 
-                {/* Card 1: Primary Metric */}
                 <div 
                     onClick={() => handleNavigate(isProprietor ? 'financial-workspace' : 'sections')}
-                    className="bg-[#101B14] text-[#FBF9F5] p-6 rounded-2xl shadow-lg relative overflow-hidden group cursor-pointer hover:scale-[1.01] transition-all"
+                    className="bg-farma-forest text-farma-cream p-5 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-shadow group"
                 >
-                    <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl group-hover:bg-[#D9A63E]/10 transition-colors duration-700 pointer-events-none"></div>
-                    <span className="text-[10px] font-mono font-bold text-[#FBF9F5]/60 uppercase tracking-widest block relative z-10">
-                        {isProprietor ? 'Total Gross Revenue' : 'Total Live Population'}
+                    <span className="text-xs font-semibold text-farma-cream/60 block">
+                        {isProprietor ? 'Total Income' : 'Total Live Birds'}
                     </span>
-                    <div className="mt-2 text-4xl font-extrabold font-mono relative z-10">
+                    <div className="mt-2 text-3xl font-bold tabular-nums">
                         {isProprietor 
                             ? `₦${globalStats.totalRevenue.toLocaleString()}` 
                             : globalStats.livePopulation.toLocaleString()}
                     </div>
-                    <div className="mt-4 relative z-10 flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-[#2A5C38] bg-[#2A5C38]/20 px-2 py-1 rounded uppercase tracking-widest">
-                            {isProprietor ? 'YTD Earnings' : 'Active Biomass'}
+                    <div className="mt-4 flex justify-between items-center border-t border-white/10 pt-3">
+                        <span className="text-[10px] font-bold text-farma-green bg-farma-green/20 px-2 py-1 rounded uppercase tracking-widest">
+                            {isProprietor ? 'Total Income' : 'Live Birds'}
                         </span>
-                        <span className="text-[10px] text-white/50 font-mono group-hover:text-white transition-colors">Details →</span>
+                        <span className="text-xs font-semibold text-white/50 group-hover:text-white transition-colors">Details &rarr;</span>
                     </div>
                 </div>
 
-                {/* Card 2: Secondary Metric */}
                 <div 
                     onClick={() => handleNavigate(isProprietor ? 'financial-workspace' : 'sections')}
-                    className="bg-[#FBF9F5] p-6 rounded-2xl border border-[#101B14]/10 shadow-sm flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
+                    className="bg-white p-5 rounded-xl border border-farma-forest/10 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer group"
                 >
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest block">
-                        {isProprietor ? 'Total Operating Expenses' : 'Active Cohorts (Batches)'}
+                    <span className="text-xs font-semibold text-farma-forest/60 block">
+                        {isProprietor ? 'Total Expenses' : 'Active Flocks'}
                     </span>
-                    <div className={`mt-2 text-4xl font-extrabold font-mono ${isProprietor ? 'text-[#E76F51]' : 'text-[#2A5C38]'}`}>
+                    <div className={`mt-2 text-3xl font-bold tabular-nums ${isProprietor ? 'text-farma-terracotta' : 'text-farma-green'}`}>
                         {isProprietor 
                             ? `₦${globalStats.totalExpenses.toLocaleString()}` 
                             : globalStats.activeBatches}
                     </div>
-                    <div className="mt-4 border-t border-[#101B14]/5 pt-3 flex justify-between items-center">
-                        <span className="text-[10px] font-mono font-bold text-[#101B14]/40">
-                            {isProprietor ? 'Enterprise Outflow' : 'Currently Rearing'}
+                    <div className="mt-4 border-t border-farma-forest/5 pt-3 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-farma-forest/50">
+                            {isProprietor ? 'Money Spent' : 'Active Flocks'}
                         </span>
-                        <span className="text-[10px] text-[#101B14]/40 font-mono group-hover:text-[#101B14] transition-colors">View →</span>
+                        <span className="text-xs font-semibold text-farma-forest/40 group-hover:text-farma-forest transition-colors">View &rarr;</span>
                     </div>
                 </div>
 
-                {/* Card 3: Asset & Company Valuation */}
                 <div 
                     onClick={() => handleNavigate('inventory')}
-                    className="bg-[#FBF9F5] p-6 rounded-2xl border border-[#101B14]/10 shadow-sm flex flex-col justify-between hover:shadow-md transition-all cursor-pointer group"
+                    className="bg-white p-5 rounded-xl border border-farma-forest/10 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow cursor-pointer group"
                 >
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest block">
-                        {isProprietor ? 'Company Asset Valuation' : 'Warehouse Valuation'}
+                    <span className="text-xs font-semibold text-farma-forest/60 block">
+                        {isProprietor ? 'Total Farm Value' : 'Warehouse Value'}
                     </span>
-                    <div className="mt-2 text-3xl sm:text-4xl font-extrabold font-mono text-[#101B14]">
+                    <div className="mt-2 text-3xl font-bold tabular-nums text-farma-forest">
                         ₦{(isProprietor ? globalStats.companyValuation : globalStats.totalInventoryValue).toLocaleString()}
                     </div>
-                    <div className="mt-4 border-t border-[#101B14]/5 pt-3 flex justify-between items-center">
-                        <span className="text-[10px] font-mono font-bold text-[#101B14]/40">
-                            {isProprietor ? 'Stock + Capital Assets' : 'Physical Warehouse'}
+                    <div className="mt-4 border-t border-farma-forest/5 pt-3 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-farma-forest/50">
+                            {isProprietor ? 'Stock & Assets' : 'Inventory'}
                         </span>
-                        <span className="text-[10px] font-bold text-[#D9A63E] group-hover:underline uppercase tracking-widest">Manage Stock →</span>
+                        <span className="text-[10px] font-bold text-farma-gold group-hover:underline uppercase tracking-widest">Manage Stock &rarr;</span>
                     </div>
                 </div>
 
-                {/* Card 4: Security Radar */}
                 <div 
                     onClick={() => handleNavigate('analytics')}
-                    className={`p-6 rounded-2xl border shadow-sm flex flex-col justify-between transition-all cursor-pointer group ${globalStats.activeAlerts > 0 ? 'bg-[#E76F51]/5 border-[#E76F51]/30 hover:bg-[#E76F51]/10' : 'bg-white border-[#101B14]/10 hover:shadow-md'}`}
+                    className={`p-5 rounded-xl border shadow-sm flex flex-col justify-between transition-shadow cursor-pointer group ${globalStats.activeAlerts > 0 ? 'bg-farma-terracotta/5 border-farma-terracotta/30 hover:shadow-md' : 'bg-white border-farma-forest/10 hover:shadow-md'}`}
                 >
-                    <span className="text-[10px] font-mono font-bold text-[#101B14]/50 uppercase tracking-widest block">
-                        Biosecurity Radar
+                    <span className="text-xs font-semibold text-farma-forest/60 block">
+                        Farm Health Alerts
                     </span>
-                    <div className={`mt-2 text-4xl font-extrabold font-mono ${globalStats.activeAlerts > 0 ? 'text-[#E76F51]' : 'text-[#2A5C38]'}`}>
-                        {globalStats.activeAlerts} <span className="text-xl">Alerts</span>
+                    <div className={`mt-2 text-3xl font-bold tabular-nums ${globalStats.activeAlerts > 0 ? 'text-farma-terracotta' : 'text-farma-green'}`}>
+                        {globalStats.activeAlerts} <span className="text-lg font-sans font-medium text-farma-forest/60">Alerts</span>
                     </div>
-                    <div className="mt-4 border-t border-[#101B14]/5 pt-3 flex justify-between items-center">
-                        <span className="text-[10px] font-mono font-bold text-[#101B14]/40">System State Machine</span>
-                        <span className="text-[10px] font-bold text-[#E76F51] group-hover:underline uppercase tracking-widest">Audit Radar →</span>
+                    <div className="mt-4 border-t border-farma-forest/5 pt-3 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-farma-forest/50">System Warnings</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${globalStats.activeAlerts > 0 ? 'text-farma-terracotta group-hover:underline' : 'text-farma-green'}`}>
+                            {globalStats.activeAlerts > 0 ? 'View Alerts \u2192' : 'All Clear'}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* 3. MACRO CHARTS & VISUALIZATIONS */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
                 
-                {/* Left Chart: Financial Cashflow or Performance Trend */}
-                <div className="lg:col-span-2 bg-white rounded-2xl border border-[#101B14]/10 p-7 shadow-sm">
+                <div className="lg:col-span-2 bg-white rounded-xl border border-farma-forest/10 p-6 shadow-sm">
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif]">
-                                {isProprietor ? 'Enterprise Cashflow (YTD)' : 'Production Trend'}
+                            <h4 className="text-lg font-bold text-farma-forest">
+                                {isProprietor ? 'Farm Cashflow' : 'Production Trend'}
                             </h4>
-                            <p className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest mt-1">
-                                {isProprietor ? 'Monthly Income vs Expenditure' : 'Efficiency metrics over time'}
+                            <p className="text-sm text-farma-forest/50 font-medium mt-1">
+                                {isProprietor ? 'Monthly Income vs Expenses' : 'Performance over time'}
                             </p>
                         </div>
                         {isProprietor && (
                             <div className="flex gap-4">
-                                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#2A5C38]"></div><span className="text-[10px] font-mono font-bold text-[#101B14]/60">Income</span></div>
-                                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-[#E76F51]"></div><span className="text-[10px] font-mono font-bold text-[#101B14]/60">Expense</span></div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-farma-green"></div>
+                                    <span className="text-xs font-medium text-farma-forest/60">Income</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-farma-terracotta"></div>
+                                    <span className="text-xs font-medium text-farma-forest/60">Expense</span>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -400,13 +401,13 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={cashflowData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={THEME.lightGray} opacity={0.5} />
-                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: THEME.forest, opacity: 0.5, fontFamily: 'monospace' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: THEME.forest, opacity: 0.5, fontFamily: 'monospace' }} tickFormatter={(val) => `₦${(val/1000).toFixed(0)}k`} />
+                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: THEME.forest, opacity: 0.5 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: THEME.forest, opacity: 0.5 }} tickFormatter={(val) => `₦${(val/1000).toFixed(0)}k`} />
                                 <RechartsTooltip 
                                     cursor={{ fill: THEME.lightGray, opacity: 0.2 }}
-                                    contentStyle={{ backgroundColor: THEME.forest, borderRadius: '12px', border: 'none' }}
-                                    itemStyle={{ fontSize: '12px', fontWeight: 'bold', fontFamily: 'monospace' }}
-                                    labelStyle={{ color: THEME.cream, opacity: 0.6, fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}
+                                    contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid var(--color-farma-forest)', borderColor: 'rgba(16, 27, 20, 0.1)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                    itemStyle={{ fontSize: '12px', fontWeight: '600' }}
+                                    labelStyle={{ color: 'var(--color-farma-forest)', opacity: 0.6, fontSize: '11px', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 'bold' }}
                                 />
                                 <Bar dataKey="Income" fill={THEME.green} radius={[4, 4, 0, 0]} barSize={24} />
                                 <Bar dataKey="Expense" fill={THEME.terracotta} radius={[4, 4, 0, 0]} barSize={24} />
@@ -415,15 +416,14 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                     </div>
                 </div>
 
-                {/* Right Chart: Inventory Distribution Donut */}
-                <div className="bg-white rounded-2xl border border-[#101B14]/10 p-7 shadow-sm flex flex-col items-center">
-                    <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif] w-full text-left">Asset Allocation</h4>
-                    <p className="text-[10px] text-[#101B14]/50 font-bold uppercase tracking-widest mt-1 w-full text-left">Warehouse Distribution by Volume</p>
+                <div className="bg-white rounded-xl border border-farma-forest/10 p-6 shadow-sm flex flex-col items-center">
+                    <h4 className="text-lg font-bold text-farma-forest w-full text-left">Inventory Breakdown</h4>
+                    <p className="text-sm text-farma-forest/50 font-medium mt-1 w-full text-left">What is currently in stock</p>
                     
                     <div className="h-48 w-full relative mt-6">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie data={inventoryData} innerRadius={60} outerRadius={85} paddingAngle={2} dataKey="value" stroke="none">
+                                <Pie data={inventoryData} innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
                                     {inventoryData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
@@ -432,97 +432,93 @@ export const ManagerDashboardView: React.FC<ManagerDashboardViewProps> = ({
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                            <span className="text-[10px] font-bold text-[#101B14]/40 uppercase tracking-widest">Total Stock Value</span>
-                            <span className="text-lg font-extrabold text-[#101B14] font-mono">₦{globalStats.totalInventoryValue.toLocaleString()}</span>
+                            <span className="text-[10px] font-bold text-farma-forest/40 uppercase tracking-widest">Stock Value</span>
+                            <span className="text-base font-bold text-farma-forest tabular-nums mt-1">₦{(globalStats.totalInventoryValue / 1000).toFixed(0)}k</span>
                         </div>
                     </div>
                     
-                    {/* Custom Legend */}
-                    <div className="w-full mt-6 space-y-2">
+                    <div className="w-full mt-6 space-y-3">
                         {inventoryData.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-xs font-mono font-bold">
+                            <div key={idx} className="flex justify-between items-center text-xs font-medium">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></div>
-                                    <span className="text-[#101B14]/70 uppercase tracking-wider">{item.name}</span>
+                                    <span className="text-farma-forest/70">{item.name}</span>
                                 </div>
-                                <span className="text-[#101B14]">{item.value === 1 && item.name === 'No Stock' ? '0' : item.value.toLocaleString()} Units</span>
+                                <span className="text-farma-forest tabular-nums">{item.value === 1 && item.name === 'No Stock' ? '0' : item.value.toLocaleString()} Units</span>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* 4. WORKFLOW QUICK ACTIONS */}
-            <div className="bg-white rounded-2xl border border-[#101B14]/10 p-6 shadow-sm mt-6">
-                <div className="border-b border-[#101B14]/10 pb-4 mb-6">
-                    <h4 className="text-lg font-extrabold text-[#101B14] font-['Fraunces',serif]">Quick Workflows</h4>
-                    <span className="text-[10px] font-mono text-[#101B14]/40 uppercase tracking-widest">Accelerated Navigation</span>
+            <div className="bg-white rounded-xl border border-farma-forest/10 p-6 shadow-sm mt-6">
+                <div className="border-b border-farma-forest/10 pb-4 mb-6">
+                    <h4 className="text-lg font-bold text-farma-forest">Quick Actions</h4>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     
                     <button 
                         onClick={() => handleNavigate('daily-logs')} 
-                        className="p-5 rounded-xl border border-[#101B14]/10 hover:border-[#D9A63E]/50 hover:bg-[#D9A63E]/5 text-left transition-all group cursor-pointer"
+                        className="p-5 rounded-lg border border-farma-forest/10 hover:border-farma-forest/30 hover:bg-farma-cream text-left transition-colors cursor-pointer"
                     >
-                        <div className="w-10 h-10 rounded-full bg-[#D9A63E]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <span className="text-lg">📝</span>
+                        <div className="w-8 h-8 rounded-md bg-farma-cream border border-farma-forest/5 flex items-center justify-center mb-3">
+                            <svg className="w-4 h-4 text-farma-forest/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         </div>
-                        <p className="text-sm font-bold text-[#101B14] group-hover:text-[#D9A63E]">Record Telemetry</p>
-                        <p className="text-[10px] font-mono text-[#101B14]/50 mt-1">Log mortality, feed usage & weights</p>
+                        <p className="text-sm font-semibold text-farma-forest">Daily Records</p>
+                        <p className="text-xs text-farma-forest/50 mt-1">Log lost birds, feed used & weights</p>
                     </button>
 
                     <button 
                         onClick={() => handleNavigate('analytics')} 
-                        className="p-5 rounded-xl border border-[#101B14]/10 hover:border-[#E76F51]/50 hover:bg-[#E76F51]/5 text-left transition-all group cursor-pointer"
+                        className="p-5 rounded-lg border border-farma-forest/10 hover:border-farma-forest/30 hover:bg-farma-cream text-left transition-colors cursor-pointer"
                     >
-                        <div className="w-10 h-10 rounded-full bg-[#E76F51]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <span className="text-lg">🛡️</span>
+                        <div className="w-8 h-8 rounded-md bg-farma-cream border border-farma-forest/5 flex items-center justify-center mb-3">
+                            <svg className="w-4 h-4 text-farma-forest/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         </div>
-                        <p className="text-sm font-bold text-[#101B14] group-hover:text-[#E76F51]">Biosecurity Radar</p>
-                        <p className="text-[10px] font-mono text-[#101B14]/50 mt-1">Resolve active system alerts</p>
+                        <p className="text-sm font-semibold text-farma-forest">Farm Alerts</p>
+                        <p className="text-xs text-farma-forest/50 mt-1">View and fix health alerts</p>
                     </button>
 
                     {isProprietor && (
                         <button 
                             onClick={() => handleNavigate('financial-workspace')} 
-                            className="p-5 rounded-xl border border-[#101B14]/10 hover:border-[#2A5C38]/50 hover:bg-[#2A5C38]/5 text-left transition-all group cursor-pointer"
+                            className="p-5 rounded-lg border border-farma-forest/10 hover:border-farma-forest/30 hover:bg-farma-cream text-left transition-colors cursor-pointer"
                         >
-                            <div className="w-10 h-10 rounded-full bg-[#2A5C38]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <span className="text-lg">💰</span>
+                            <div className="w-8 h-8 rounded-md bg-farma-cream border border-farma-forest/5 flex items-center justify-center mb-3">
+                                <svg className="w-4 h-4 text-farma-forest/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08-.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             </div>
-                            <p className="text-sm font-bold text-[#101B14] group-hover:text-[#2A5C38]">Financial Ledger</p>
-                            <p className="text-[10px] font-mono text-[#101B14]/50 mt-1">Audit enterprise transactions</p>
+                            <p className="text-sm font-semibold text-farma-forest">Farm Finances</p>
+                            <p className="text-xs text-farma-forest/50 mt-1">Manage income and expenses</p>
                         </button>
                     )}
 
                     <button 
                         onClick={() => handleNavigate('inventory')} 
-                        className="p-5 rounded-xl border border-[#101B14]/10 hover:border-[#101B14]/30 hover:bg-[#101B14]/5 text-left transition-all group cursor-pointer"
+                        className="p-5 rounded-lg border border-farma-forest/10 hover:border-farma-forest/30 hover:bg-farma-cream text-left transition-colors cursor-pointer"
                     >
-                        <div className="w-10 h-10 rounded-full bg-[#101B14]/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <span className="text-lg">📦</span>
+                        <div className="w-8 h-8 rounded-md bg-farma-cream border border-farma-forest/5 flex items-center justify-center mb-3">
+                            <svg className="w-4 h-4 text-farma-forest/70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                         </div>
-                        <p className="text-sm font-bold text-[#101B14]">Warehouse Manager</p>
-                        <p className="text-[10px] font-mono text-[#101B14]/50 mt-1">View stock & WAC valuation</p>
+                        <p className="text-sm font-semibold text-farma-forest">Inventory</p>
+                        <p className="text-xs text-farma-forest/50 mt-1">Manage feed, medicine & equipment</p>
                     </button>
                 </div>
             </div>
 
-            {/* 5. OPERATOR PROFILE STRIP */}
-            <div className="flex items-center justify-between p-4 mt-6 bg-[#FBF9F5] border border-[#101B14]/10 rounded-xl">
+            <div className="flex items-center justify-between p-4 mt-6 bg-white border border-farma-forest/10 rounded-xl shadow-sm">
                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-[#101B14] text-white flex items-center justify-center font-bold font-mono">
+                    <div className="w-10 h-10 rounded-full bg-farma-forest text-white flex items-center justify-center font-bold text-sm">
                         {authData.email ? authData.email.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-[#101B14]">{authData.email}</p>
-                        <p className="text-[10px] font-mono text-[#101B14]/50">Tenant Org ID: #{authData.organisationId}</p>
+                        <p className="text-sm font-bold text-farma-forest">{authData.email}</p>
+                        <p className="text-xs text-farma-forest/50">Farm ID: #{authData.organisationId}</p>
                     </div>
                 </div>
                 <div className="text-right">
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#D9A63E] bg-[#D9A63E]/10 px-3 py-1.5 rounded border border-[#D9A63E]/20">
-                        Clearance: {authData.role}
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 bg-farma-forest/5 px-3 py-1.5 rounded-md border border-farma-forest/10">
+                        Role: {authData.role}
                     </span>
                 </div>
             </div>
