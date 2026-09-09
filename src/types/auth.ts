@@ -51,6 +51,7 @@ export interface AuthResponseDto {
     role: Role;
     organisationId: number | null;
     userId?: number;
+    requiresPasswordChange: boolean;
 }
 
 // Matches com.project.farma.user.dto.UserResponseDto

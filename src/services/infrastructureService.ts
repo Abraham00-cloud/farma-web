@@ -5,6 +5,7 @@ import type {
     SectionRequestDto,
     SectionResponseDto,
 } from '../types/infrastructure';
+import type { SpringPage } from '../types/pagination';
 
 export const infrastructureService = {
     // --- FARMS ---
@@ -13,9 +14,15 @@ export const infrastructureService = {
         return response.data;
     },
 
-    getFarmsByOrganisation: async (organisationId: number): Promise<FarmResponseDto[]> => {
-        const response = await apiClient.get<FarmResponseDto[]>(`/farms/organisation/${organisationId}`);
-        return response.data;
+    getFarmsByOrganisation: async (
+        organisationId: number,
+        page: number = 0,
+        size: number = 50
+    ): Promise<FarmResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<FarmResponseDto>>(
+            `/farms/organisation/${organisationId}?page=${page}&size=${size}`
+        );
+        return response.data.content;
     },
 
     getFarmById: async (farmId: number): Promise<FarmResponseDto> => {
@@ -29,14 +36,28 @@ export const infrastructureService = {
         return response.data;
     },
 
-    getSectionsByFarm: async (farmId: number): Promise<SectionResponseDto[]> => {
-        const response = await apiClient.get<SectionResponseDto[]>(`/sections/farm/${farmId}`);
-        return response.data;
+    getSectionsByFarm: async (
+        farmId: number,
+        page: number = 0,
+        size: number = 100 // Fetch a large default page to get all pens at once
+    ): Promise<SectionResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<SectionResponseDto>>(
+            `/sections/farm/${farmId}?page=${page}&size=${size}`
+        );
+        // Extract the array from the paginated object
+        return response.data.content;
     },
 
     // Used when populating the "Create Batch" dropdown to show ONLY unblocked pens
-    getAvailableSectionsByFarm: async (farmId: number): Promise<SectionResponseDto[]> => {
-        const response = await apiClient.get<SectionResponseDto[]>(`/sections/farm/${farmId}/available`);
-        return response.data;
+    getAvailableSectionsByFarm: async (
+        farmId: number,
+        page: number = 0,
+        size: number = 100
+    ): Promise<SectionResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<SectionResponseDto>>(
+            `/sections/farm/${farmId}/available?page=${page}&size=${size}`
+        );
+        // Extract the array from the paginated object
+        return response.data.content;
     },
 };

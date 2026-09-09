@@ -1,39 +1,43 @@
 import { apiClient } from './apiClient';
 import type { DailyLogRequestDto, DailyLogResponseDto } from '../types/dailyLog';
+import type { SpringPage } from '../types/pagination';
 
 export const dailyLogService = {
-    // POST /api/v1/daily-logs
     createDailyLog: async (data: DailyLogRequestDto): Promise<DailyLogResponseDto> => {
         const response = await apiClient.post<DailyLogResponseDto>('/daily-logs', data);
         return response.data;
     },
 
-    // GET /api/v1/daily-logs/batch/{batchId}
-    getLogsForBatch: async (batchId: number): Promise<DailyLogResponseDto[]> => {
-        const response = await apiClient.get<DailyLogResponseDto[]>(`/daily-logs/batch/${batchId}`);
-        return response.data;
+    getLogsForBatch: async (
+        batchId: number, 
+        page: number = 0, 
+        size: number = 50 
+    ): Promise<DailyLogResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<DailyLogResponseDto>>(
+            `/daily-logs/batch/${batchId}?page=${page}&size=${size}`
+        );
+        return response.data.content; 
     },
 
-    // GET /api/v1/daily-logs/batch/{batchId}/window
     getLogsForBatchInWindow: async (
         batchId: number,
         startDate: string,
-        endDate: string
+        endDate: string,
+        page: number = 0,
+        size: number = 50
     ): Promise<DailyLogResponseDto[]> => {
-        const response = await apiClient.get<DailyLogResponseDto[]>(
+        const response = await apiClient.get<SpringPage<DailyLogResponseDto>>(
             `/daily-logs/batch/${batchId}/window`,
-            { params: { startDate, endDate } }
+            { params: { startDate, endDate, page, size } }
         );
-        return response.data;
+        return response.data.content;
     },
 
-    // PUT /api/v1/daily-logs/{logId} (ADDED)
     updateLog: async (logId: number, data: DailyLogRequestDto): Promise<DailyLogResponseDto> => {
         const response = await apiClient.put<DailyLogResponseDto>(`/daily-logs/${logId}`, data);
         return response.data;
     },
 
-    // DELETE /api/v1/daily-logs/{logId} (ADDED)
     deleteLog: async (logId: number): Promise<void> => {
         await apiClient.delete(`/daily-logs/${logId}`);
     }

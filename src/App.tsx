@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { LandingPage } from './features/landing/LandingPage';
 import { AuthScreen } from './features/auth/AuthScreen';
 import { ResetPasswordScreen } from './features/auth/ResetPasswordScreen';
+import { SetupPasswordScreen } from './features/auth/SetupPasswordScreen'; // <-- NEW IMPORT
 import { Sidebar } from './components/layout/Sidebar';
 import { HeaderBar } from './components/layout/HeaderBar';
 import { authService } from './services/authService';
@@ -60,6 +61,11 @@ export function App() {
       <Route
         path="/auth/reset-password"
         element={<ResetPasswordScreen />}
+      />
+      {/* --- NEW: The Compulsory Setup Password Route --- */}
+      <Route
+        path="/auth/setup-password"
+        element={<SetupPasswordScreen />}
       />
 
       {/* ================= PROTECTED PORTAL LAYOUT & NAMESPACED SUB-ROUTES ================= */}

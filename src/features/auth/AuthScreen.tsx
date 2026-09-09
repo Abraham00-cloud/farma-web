@@ -51,6 +51,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         password: '',
     });
 
+    // --- NEW: Password validation state ---
+    const [passwordValidations, setPasswordValidations] = useState({
+        length: false,
+        casing: false,
+        number: false,
+        special: false,
+    });
+
+    const isPasswordStrong = Object.values(passwordValidations).every(Boolean);
+
+    const handlePasswordChange = (password: string) => {
+        setRegData({ ...regData, password });
+        setPasswordValidations({
+            length: password.length >= 8,
+            casing: /[a-z]/.test(password) && /[A-Z]/.test(password),
+            number: /\d/.test(password),
+            special: /[@$!%*?&]/.test(password),
+        });
+    };
+
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -59,6 +79,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         try {
             const response = await authService.login(loginData);
             onAuthSuccess(response);
+
+            // --- NEW: The Gatekeeper Interceptor ---
+            if (response.requiresPasswordChange) {
+                navigate('/auth/setup-password', { replace: true });
+                return; // Stop execution so they don't go to the dashboard
+            }
 
             const userRole = response.role?.toUpperCase();
             const targetPath = (userRole === 'MANAGER') ? '/manager/dashboard' : '/proprietor/dashboard';
@@ -86,12 +112,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setSuccessMessage(null);
 
         try {
+            // ✅ THE MISSING API CALL
+            await axios.post('https://api.farma.com.ng/api/v1/auth/forgot-password', {
+                email: resetEmail
+            });
+
+            // Show success message only AFTER the backend confirms
             setSuccessMessage(
                 isManager
                     ? 'If your email is registered, we have sent password reset instructions to your inbox. You can also ask the organisation owner to reset it for you.'
                     : 'If your email is registered, we have sent a secure password reset link to your inbox.'
             );
-        } catch {
+        } catch (error) {
+            console.error("Forgot password request failed:", error);
             setErrorMessage('Unable to process request right now. Please try again later.');
         } finally {
             setLoading(false);
@@ -349,7 +382,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                         <div>
                                             <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">Password (Min 8 chars)</label>
                                             <div className="relative">
-                                                <input type={showRegPassword ? 'text' : 'password'} required minLength={8} value={regData.password} onChange={(e) => setRegData({ ...regData, password: e.target.value })} placeholder="••••••••" className={`${inputClasses} pr-12`} />
+                                                <input type={showRegPassword ? 'text' : 'password'} required minLength={8} value={regData.password} onChange={(e) => handlePasswordChange(e.target.value)} placeholder="••••••••" className={`${inputClasses} pr-12`} />
                                                 <button type="button" onClick={() => setShowRegPassword(!showRegPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#8FA091] hover:text-[#101B14] transition-colors cursor-pointer">
                                                     {showRegPassword ? (
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -358,12 +391,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                                     )}
                                                 </button>
                                             </div>
+                                            
+                                            {/* --- NEW: Dynamic Password Checklist --- */}
+                                            <div className="mt-2 space-y-1.5 p-3 bg-[#101B14]/5 rounded-xl border border-[#101B14]/10">
+                                                <div className={`text-[10px] font-bold tracking-wide flex items-center transition-colors ${passwordValidations.length ? 'text-[#3F6B47]' : 'text-[#101B14]/40'}`}>
+                                                    <span className="mr-2 text-xs">{passwordValidations.length ? '✅' : '○'}</span> At least 8 characters
+                                                </div>
+                                                <div className={`text-[10px] font-bold tracking-wide flex items-center transition-colors ${passwordValidations.casing ? 'text-[#3F6B47]' : 'text-[#101B14]/40'}`}>
+                                                    <span className="mr-2 text-xs">{passwordValidations.casing ? '✅' : '○'}</span> Uppercase & lowercase
+                                                </div>
+                                                <div className={`text-[10px] font-bold tracking-wide flex items-center transition-colors ${passwordValidations.number ? 'text-[#3F6B47]' : 'text-[#101B14]/40'}`}>
+                                                    <span className="mr-2 text-xs">{passwordValidations.number ? '✅' : '○'}</span> At least one number
+                                                </div>
+                                                <div className={`text-[10px] font-bold tracking-wide flex items-center transition-colors ${passwordValidations.special ? 'text-[#3F6B47]' : 'text-[#101B14]/40'}`}>
+                                                    <span className="mr-2 text-xs">{passwordValidations.special ? '✅' : '○'}</span> Special character (@$!%*?&)
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="max-w-md mx-auto">
-                                    <button type="submit" disabled={loading} className="w-full mt-4 py-4 px-4 rounded-xl bg-gradient-to-r from-[#D9A63E] to-[#c49332] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-[#D9A63E]/20 hover:shadow-[#D9A63E]/40 hover:-translate-y-0.5 focus:outline-none transform transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer">
+                                    <button type="submit" disabled={loading || !isPasswordStrong} className="w-full mt-4 py-4 px-4 rounded-xl bg-gradient-to-r from-[#D9A63E] to-[#c49332] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-[#D9A63E]/20 hover:shadow-[#D9A63E]/40 hover:-translate-y-0.5 focus:outline-none transform transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer">
                                         {loading ? (
                                             <>
                                                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#101B14]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

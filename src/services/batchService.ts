@@ -4,8 +4,9 @@ import type {
     BatchResponseDto,
     BatchCloseRequestDto,
     BatchCloseResponseDto,
-    PartialSaleRequestDto, // <-- Added import
+    PartialSaleRequestDto,
 } from '../types/batch';
+import type { SpringPage } from '../types/pagination';
 
 export const batchService = {
     createBatch: async (data: BatchRequestDto): Promise<BatchResponseDto> => {
@@ -19,15 +20,29 @@ export const batchService = {
     },
 
     // GET /api/v1/batches/section/{sectionId}
-    getBatchesBySection: async (sectionId: number): Promise<BatchResponseDto[]> => {
-        const response = await apiClient.get<BatchResponseDto[]>(`/batches/section/${sectionId}`);
-        return response.data;
+    getBatchesBySection: async (
+        sectionId: number,
+        page: number = 0,
+        size: number = 100 // Fetch a large default page to cover all batches in a section
+    ): Promise<BatchResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<BatchResponseDto>>(
+            `/batches/section/${sectionId}?page=${page}&size=${size}`
+        );
+        // Extract the array from the paginated object
+        return response.data.content;
     },
 
     // GET /api/v1/batches/farm/{farmId}
-    getBatchesByFarm: async (farmId: number): Promise<BatchResponseDto[]> => {
-        const response = await apiClient.get<BatchResponseDto[]>(`/batches/farm/${farmId}`);
-        return response.data;
+    getBatchesByFarm: async (
+        farmId: number,
+        page: number = 0,
+        size: number = 100
+    ): Promise<BatchResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<BatchResponseDto>>(
+            `/batches/farm/${farmId}?page=${page}&size=${size}`
+        );
+        // Extract the array from the paginated object
+        return response.data.content;
     },
 
     logMortality: async (batchId: number, deathCount: number): Promise<void> => {
@@ -47,7 +62,6 @@ export const batchService = {
         return response.data;
     },
 
-    // NEW: Partial Sale Endpoint
     recordPartialSale: async (
         batchId: number, 
         data: PartialSaleRequestDto

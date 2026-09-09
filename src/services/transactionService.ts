@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
 import type { TransactionRequestDto, TransactionResponseDto } from '../types/transaction';
+import type { SpringPage } from '../types/pagination';
 
 export const transactionService = {
     // POST /api/v1/transactions
@@ -8,23 +9,41 @@ export const transactionService = {
         return response.data;
     },
 
-    // GET /api/v1/transactions/cash-flow/organisation/{organisationId}
-    getCompanyCashFlow: async (organisationId: number): Promise<TransactionResponseDto[]> => {
-        const response = await apiClient.get<TransactionResponseDto[]>(
-            `/transactions/cash-flow/organisation/${organisationId}`
+    // GET /api/v1/transactions/organisation/{organisationId}
+    getOrganisationLedger: async (
+        organisationId: number,
+        page: number = 0,
+        size: number = 50
+    ): Promise<TransactionResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<TransactionResponseDto>>(
+            `/transactions/organisation/${organisationId}?page=${page}&size=${size}`
         );
-        return response.data;
+        return response.data.content;
+    },
+
+    // GET /api/v1/transactions/cash-flow/organisation/{organisationId}
+    getCompanyCashFlow: async (
+        organisationId: number,
+        page: number = 0,
+        size: number = 50
+    ): Promise<TransactionResponseDto[]> => {
+        const response = await apiClient.get<SpringPage<TransactionResponseDto>>(
+            `/transactions/cash-flow/organisation/${organisationId}?page=${page}&size=${size}`
+        );
+        return response.data.content;
     },
 
     // GET /api/v1/transactions/ledger/batch/{batchId}/organisation/{organisationId}
     getBatchLedger: async (
         batchId: number,
-        organisationId: number
+        organisationId: number,
+        page: number = 0,
+        size: number = 50
     ): Promise<TransactionResponseDto[]> => {
-        const response = await apiClient.get<TransactionResponseDto[]>(
-            `/transactions/ledger/batch/${batchId}/organisation/${organisationId}`
+        const response = await apiClient.get<SpringPage<TransactionResponseDto>>(
+            `/transactions/ledger/batch/${batchId}/organisation/${organisationId}?page=${page}&size=${size}`
         );
-        return response.data;
+        return response.data.content;
     },
 
     // GET /api/v1/transactions/pnl/batch/{batchId}/organisation/{organisationId}
@@ -38,12 +57,14 @@ export const transactionService = {
     // GET /api/v1/transactions/farm/{farmId}/organisation/{organisationId}
     getFarmTransactions: async (
         farmId: number,
-        organisationId: number
+        organisationId: number,
+        page: number = 0,
+        size: number = 50
     ): Promise<TransactionResponseDto[]> => {
-        const response = await apiClient.get<TransactionResponseDto[]>(
-            `/transactions/farm/${farmId}/organisation/${organisationId}`
+        const response = await apiClient.get<SpringPage<TransactionResponseDto>>(
+            `/transactions/farm/${farmId}/organisation/${organisationId}?page=${page}&size=${size}`
         );
-        return response.data;
+        return response.data.content;
     },
 
     // GET /api/v1/transactions/pnl/farm/{farmId}/organisation/{organisationId}
@@ -54,11 +75,11 @@ export const transactionService = {
         return response.data;
     },
 
-    // Add this inside your transactionService object
+    // GET /api/v1/transactions/export/organisation/{organisationId}
     exportLedgerToCsv: async (organisationId: number, startDate: string, endDate: string): Promise<void> => {
         const response = await apiClient.get(`/transactions/export/organisation/${organisationId}`, {
             params: { startDate, endDate },
-            responseType: 'blob', // Crucial: Tells axios to treat the response as a file, not JSON
+            responseType: 'blob',
         });
 
         const blob = new Blob([response.data], { type: 'text/csv' });

@@ -1,15 +1,19 @@
 import { apiClient } from "./apiClient";
 import type { UserRequestDto, UserResponseDto } from "../types/auth";
+import type { SpringPage } from "../types/pagination";
 
 export const userService = {
     // 1. Fetches operational managers linked to a specific Proprietor ID
     getManagersByProprietor: async (
         proprietorId: number,
+        page: number = 0,
+        size: number = 50
     ): Promise<UserResponseDto[]> => {
-        const response = await apiClient.get<UserResponseDto[]>(
-            `/users/proprietor/${proprietorId}`,
+        const response = await apiClient.get<SpringPage<UserResponseDto>>(
+            `/users/proprietor/${proprietorId}?page=${page}&size=${size}`,
         );
-        return response.data;
+        // Extract the array from the paginated object
+        return response.data.content;
     },
 
     // 2. Registers a new user (Manager or Proprietor) under /api/v1/auth/register
