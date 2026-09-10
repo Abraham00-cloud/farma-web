@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { authService } from '../../services/authService';
@@ -35,7 +35,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
     const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
 
     // --- SECURITY: Rate Limiting & Cooldown State ---
-    const [failedAttempts, setFailedAttempts] = useState<number>(0);
+    const failedAttemptsRef = useRef<number>(0);
     const [lockoutTimer, setLockoutTimer] = useState<number>(0);
 
     const [loginData, setLoginData] = useState<LoginRequestDto>({
@@ -64,9 +64,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
     const isPasswordStrong = Object.values(passwordValidations).every(Boolean);
 
-    // Handle cooldown timer countdown
+    // Handle cooldown timer countdown (FIXED: Universal Timeout Type)
     useEffect(() => {
-        let timer: NodeJS.Timeout;
+        let timer: ReturnType<typeof setTimeout>;
         if (lockoutTimer > 0) {
             timer = setTimeout(() => setLockoutTimer(prev => prev - 1), 1000);
         }
@@ -95,7 +95,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
             const response = await authService.login(loginData);
             
             // Reset attempts on successful login
-            setFailedAttempts(0); 
+            failedAttemptsRef.current = 0; 
             onAuthSuccess(response);
 
             if (response.requiresPasswordChange) {
@@ -109,17 +109,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
         } catch (error: unknown) {
             // SECURITY: Increment failed attempts and trigger lock-out if needed
-            setFailedAttempts((prev) => {
-                const newAttempts = prev + 1;
-                if (newAttempts >= 4) {
-                    setLockoutTimer(30); // Lock out for 30 seconds after 4 failed attempts
-                    return 0; // Reset counter for the next window
-                }
-                return newAttempts;
-            });
+            failedAttemptsRef.current += 1;
+            if (failedAttemptsRef.current >= 4) {
+                setLockoutTimer(30); // Lock out for 30 seconds after 4 failed attempts
+                failedAttemptsRef.current = 0; // Reset counter for the next window
+            }
 
             // SECURITY: Anti-Enumeration. Mask ALL authentication errors as generic invalid credentials.
-            // Do NOT use error.response.data.message here.
             if (axios.isAxiosError(error) && !error.response) {
                 setErrorMessage('Network error. Please check your internet connection.');
             } else {
@@ -139,12 +135,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setSuccessMessage(null);
 
         try {
-            // Replaced hardcoded URL with the proper service method
-            // Ensure authService.forgotPassword(email) exists in your service layer
-            await authService.forgotPassword({ email: resetEmail });
-        } catch (error) {
+            // FIXED: Using direct axios call as requested so authService doesn't break
+            await axios.post('https://api.farma.com.ng/api/v1/auth/forgot-password', {
+                email: resetEmail
+            });
+        } catch {
             // SECURITY: Anti-Enumeration. We deliberately swallow errors here.
-            // Even if the backend throws a 404 (Email not found), we ignore it.
             console.debug("Password reset request processed."); 
         } finally {
             setLoading(false);
@@ -155,7 +151,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                     ? 'If your email is registered, we have sent password reset instructions to your inbox.'
                     : 'If your email is registered, we have sent a secure password reset link to your inbox.'
             );
-            setResetEmail(''); // Clear the input
+            setResetEmail(''); 
         }
     };
 
@@ -179,7 +175,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                 const status = error.response?.status;
                 const serverMsg = error.response?.data?.message;
 
-                // For registration, it is standard to inform the user if an account exists
                 if (status === 409 || (serverMsg && serverMsg.toLowerCase().includes('already'))) {
                     setErrorMessage('An account with this email or registration number already exists.');
                 } else if (status === 400) {
