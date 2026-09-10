@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect} from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { infrastructureService } from '../../services/infrastructureService';
@@ -348,12 +348,6 @@ const SectionsListView: React.FC<{
             
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-farma-forest/10 pb-8">
                 <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-farma-gold"></span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-farma-gold">
-                            Global Infrastructure
-                        </span>
-                    </div>
                     <h2 className="text-3xl md:text-4xl font-bold text-farma-forest tracking-tight">
                         {isProprietor ? 'All Farms & Pens' : 'My Assigned Pens'}
                     </h2>

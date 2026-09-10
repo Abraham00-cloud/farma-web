@@ -1,5 +1,10 @@
 import { apiClient } from './apiClient';
-import type { BatchFinancialPnlResponseDto, FarmFinancialOverviewDto } from '../types/finance';
+import type { 
+    BatchFinancialPnlResponseDto, 
+    FarmFinancialOverviewDto,
+    ValuationRequestDto,
+    ValuationResponseDto 
+} from '../types/finance';
 
 export const financeService = {
     // GET /api/v1/financials/batch/{batchId}/pnl
@@ -13,4 +18,10 @@ export const financeService = {
         const response = await apiClient.get<FarmFinancialOverviewDto>(`/financials/farm/${farmId}/overview`);
         return response.data;
     },
+
+    // NEW: POST /api/v1/financials/estimator/profit
+    calculateProjectedValuation: async (data: ValuationRequestDto): Promise<ValuationResponseDto> => {
+        const response = await apiClient.post<ValuationResponseDto>('/financials/estimator/profit', data);
+        return response.data;
+    }
 };

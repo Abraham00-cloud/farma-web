@@ -8,11 +8,12 @@ export interface DailyLogRequestDto {
     administrationMethod?: string | null;
     mortalityCount: number;
     averageWeight?: number | null;
+    eggsCollected?: number | null; 
     observations?: string | null;
     assignedToId?: number | null;
 }
 
-export interface DailyLogResponseDto {
+export interface DailyLogResponseDto { 
     id: number;
     logDate: string;
     batchId: number;
@@ -23,6 +24,7 @@ export interface DailyLogResponseDto {
     medicineQuantityUsed?: number | null;
     mortalityCount: number;
     averageWeight?: number | null;
+    eggsCollected?: number | null; 
     observations?: string | null;
     recordedByName: string;
     assignedToName?: string | null;

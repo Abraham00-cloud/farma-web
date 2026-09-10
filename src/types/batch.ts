@@ -25,7 +25,7 @@ export const Breed = {
 export type Breed = (typeof Breed)[keyof typeof Breed];
 
 export interface BatchRequestDto {
-    batchNumber: string;
+    batchNumber?: string; // Made optional since backend auto-generates it
     sectionId: number;
     initialCount: number;
     startDate: string; // YYYY-MM-DD
@@ -37,7 +37,7 @@ export interface BatchResponseDto {
     id: number;
     batchNumber: string;
     sectionName: string;
-    breed?: Breed; // Added optional breed field
+    breed?: Breed;
     initialCount: number;
     currentCount: number;
     mortalityCount: number;
@@ -70,7 +70,6 @@ export interface BatchCloseResponseDto {
     harvestNotes?: string;
 }
 
-// NEW: Added for Partial Sales
 export interface PartialSaleRequestDto {
     saleDate: string; // YYYY-MM-DD
     birdsSold: number;

@@ -232,12 +232,6 @@ export const BatchManagementView: React.FC<BatchManagementViewProps> = ({
 
                     <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 border-b border-farma-forest/10 pb-8">
                         <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="w-2 h-2 rounded-full bg-farma-green"></span>
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-farma-green">
-                                    Flock Operations
-                                </span>
-                            </div>
                             <h2 className="text-3xl md:text-4xl font-bold text-farma-forest tracking-tight">
                                 {isProprietor ? 'All Flock Batches' : 'My Assigned Flocks'}
                             </h2>

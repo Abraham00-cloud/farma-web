@@ -1,4 +1,4 @@
-export type InventoryCategory = 'FEED' | 'MEDICINE' | 'VACCINE' | 'EQUIPMENT' | 'OTHER';
+export type InventoryCategory = 'FEED' | 'MEDICINE' | 'VACCINE' | 'EQUIPMENT' | 'PRODUCE' | 'OTHER';
 
 export interface InventoryRequestDto {
     name: string;
@@ -18,9 +18,17 @@ export interface InventoryResponseDto {
     farmId: number;
     farmName: string;
     currentQuantity: number;
+    unit: string;
     unitPrice: string | number;
     totalValue: number;
     expiryDate: string;
     lowStockThreshold: number;
     isLowStock: boolean;
+}
+
+export interface ProduceSaleRequestDto {
+    inventoryId: number;
+    quantitySold: number;
+    unitPrice: number;
+    notes?: string;
 }

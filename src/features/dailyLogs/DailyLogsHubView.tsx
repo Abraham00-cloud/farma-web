@@ -59,6 +59,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
         administrationMethod: '',
         mortalityCount: 0,
         averageWeight: 0,
+        eggsCollected: 0,
         observations: '',
     });
 
@@ -215,6 +216,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
             administrationMethod: '',
             mortalityCount: 0,
             averageWeight: 0,
+            eggsCollected: 0,
             observations: '',
         });
     };
@@ -232,6 +234,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
             administrationMethod: log.administrationMethod || '',
             mortalityCount: log.mortalityCount || 0,
             averageWeight: log.averageWeight || 0,
+            eggsCollected: log.eggsCollected || 0,
             observations: log.observations || '',
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -255,9 +258,15 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
         }
     };
 
+    // --- THE BULLETPROOF EGG CHECK ---
+    const isEggBatch = selectedBatch ? (
+        String(selectedBatch.productionType || '').toUpperCase().includes('EGG') || 
+        String(selectedBatch.sectionName || '').toUpperCase().includes('LAYER')
+    ) : false;
+
     const handleCreateOrUpdateDailyLog = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedBatchId) return;
+        if (!selectedBatchId || !selectedBatch) return;
 
         if (Number(logForm.feedQuantityUsed) > 0 && !logForm.feedInventoryId) {
             setErrorMessage("Please select which feed was consumed.");
@@ -285,6 +294,10 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
             
             administrationMethod: logForm.administrationMethod?.trim() || undefined,
             averageWeight: logForm.averageWeight ? Number(logForm.averageWeight) : undefined,
+            
+            // Now safely uses the robust boolean
+            eggsCollected: (isEggBatch && logForm.eggsCollected) ? Number(logForm.eggsCollected) : undefined,
+            
             observations: logForm.observations?.trim() || undefined,
         };
 
@@ -318,6 +331,8 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
     const medItems = farmInventories.filter(i => i.category === 'MEDICINE' || i.category === 'VACCINE');
 
     const totalFeedConsumed = batchLogs.reduce((acc, curr) => acc + (curr.feedQuantityUsed || 0), 0);
+    const totalEggsCollected = batchLogs.reduce((acc, curr) => acc + (curr.eggsCollected || 0), 0);
+
     const weightsWithValues = batchLogs.filter((l) => l.averageWeight && l.averageWeight > 0);
     const latestWeight = weightsWithValues[0]?.averageWeight || null;
     const prevWeight = weightsWithValues[1]?.averageWeight || null;
@@ -414,22 +429,41 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                             </div>
                         </div>
 
-                        <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-between">
-                            <div>
-                                <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block">
-                                    Total Feed Used
-                                </span>
-                                <span className="text-2xl font-bold text-farma-gold mt-2 block tabular-nums">
-                                    {totalFeedConsumed.toFixed(1)} <span className="text-sm text-farma-forest/40 font-semibold">Units</span>
-                                </span>
+                        {isEggBatch ? (
+                            <div className="bg-white border border-farma-gold/30 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <span className="text-[10px] font-bold text-farma-gold uppercase tracking-widest block">
+                                        Total Eggs Laid
+                                    </span>
+                                    <span className="text-2xl font-bold text-farma-forest mt-2 block tabular-nums">
+                                        {totalEggsCollected.toLocaleString()} <span className="text-sm text-farma-forest/40 font-semibold">Pieces</span>
+                                    </span>
+                                </div>
+                                <div className="mt-4 pt-3 border-t border-farma-forest/5">
+                                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase flex items-center gap-1 tabular-nums">
+                                        <IconAverage />
+                                        Avg {(totalEggsCollected / (batchLogs.length || 1)).toFixed(0)} eggs / log
+                                    </span>
+                                </div>
                             </div>
-                            <div className="mt-4 pt-3 border-t border-farma-forest/5">
-                                <span className="text-[10px] font-bold text-farma-forest/60 uppercase flex items-center gap-1 tabular-nums">
-                                    <IconAverage />
-                                    Avg {(totalFeedConsumed / (batchLogs.length || 1)).toFixed(1)} units / log
-                                </span>
+                        ) : (
+                            <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-widest block">
+                                        Total Feed Used
+                                    </span>
+                                    <span className="text-2xl font-bold text-farma-gold mt-2 block tabular-nums">
+                                        {totalFeedConsumed.toFixed(1)} <span className="text-sm text-farma-forest/40 font-semibold">Units</span>
+                                    </span>
+                                </div>
+                                <div className="mt-4 pt-3 border-t border-farma-forest/5">
+                                    <span className="text-[10px] font-bold text-farma-forest/60 uppercase flex items-center gap-1 tabular-nums">
+                                        <IconAverage />
+                                        Avg {(totalFeedConsumed / (batchLogs.length || 1)).toFixed(1)} units / log
+                                    </span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="bg-white border border-farma-forest/10 rounded-xl p-5 shadow-sm flex flex-col justify-between">
                             <div>
@@ -610,18 +644,44 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                                     />
                                 </div>
 
-                                <div className="pt-4 border-t border-farma-forest/10">
-                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Avg Bird Weight (kg)</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        placeholder="e.g. 1.2"
-                                        value={logForm.averageWeight || ''}
-                                        onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
-                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/15 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
-                                    />
-                                </div>
+                                {isEggBatch ? (
+                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-farma-forest/10">
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-gold mb-2">Eggs Collected *</label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={logForm.eggsCollected || ''}
+                                                onChange={(e) => setLogForm({ ...logForm, eggsCollected: Number(e.target.value) })}
+                                                className="w-full px-4 py-3 rounded-lg bg-farma-gold/5 border border-farma-gold/30 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
+                                                placeholder="Pieces"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Avg Bird Wt (kg)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={logForm.averageWeight || ''}
+                                                onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
+                                                className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/15 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="pt-4 border-t border-farma-forest/10">
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Avg Bird Weight (kg)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={logForm.averageWeight || ''}
+                                            onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/15 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
+                                        />
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Notes / Observations</label>
@@ -665,6 +725,9 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                                         <tr>
                                             <th className="px-5 py-4 w-12 text-center">Status</th>
                                             <th className="px-5 py-4">Date</th>
+                                            {isEggBatch && (
+                                                <th className="px-5 py-4 w-20 text-farma-gold">Eggs</th>
+                                            )}
                                             <th className="px-5 py-4 w-40">Feed & Meds Used</th>
                                             <th className="px-5 py-4 w-32">Weight</th>
                                             <th className="px-5 py-4">Mortality (Lost)</th>
@@ -674,7 +737,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                                     <tbody className="divide-y divide-farma-forest/10 bg-white">
                                         {loading ? (
                                             <tr>
-                                                <td colSpan={6} className="px-5 py-16 text-center text-farma-forest/40 font-semibold text-xs uppercase tracking-widest">
+                                                <td colSpan={isEggBatch ? 7 : 6} className="px-5 py-16 text-center text-farma-forest/40 font-semibold text-xs uppercase tracking-widest">
                                                     Loading batch history...
                                                 </td>
                                             </tr>
@@ -697,6 +760,12 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                                                                 by {log.recordedByName || 'System'}
                                                             </div>
                                                         </td>
+
+                                                        {isEggBatch && (
+                                                            <td className="px-5 py-4 font-bold text-farma-forest tabular-nums">
+                                                                {log.eggsCollected && log.eggsCollected > 0 ? log.eggsCollected : '-'}
+                                                            </td>
+                                                        )}
                                                         
                                                         <td className="px-5 py-4">
                                                             <div className="flex flex-col gap-2">
@@ -757,7 +826,7 @@ export const DailyLogsHubView: React.FC<DailyLogsHubViewProps> = ({
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan={6} className="px-5 py-16 text-center bg-farma-cream">
+                                                <td colSpan={isEggBatch ? 7 : 6} className="px-5 py-16 text-center bg-farma-cream">
                                                     <div className="flex flex-col items-center justify-center space-y-3">
                                                         <div className="w-12 h-12 rounded-full bg-white border border-farma-forest/10 flex items-center justify-center text-farma-forest/20 shadow-sm">
                                                             <IconEmptyState />
@@ -846,6 +915,6 @@ const IconEmptyState = () => (
 
 const IconEmptyStateLarge = () => (
     <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01-2-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );

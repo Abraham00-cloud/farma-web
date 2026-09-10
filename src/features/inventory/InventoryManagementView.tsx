@@ -33,12 +33,18 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
     const [showAddModal, setShowAddModal] = useState<boolean>(false);
     const [showAdjustModal, setShowAdjustModal] = useState<boolean>(false);
     const [showRestockModal, setShowRestockModal] = useState<boolean>(false);
+    const [showSellModal, setShowSellModal] = useState<boolean>(false); // NEW
     
     const [selectedItem, setSelectedItem] = useState<InventoryResponseDto | null>(null);
     
     const [adjustAmount, setAdjustAmount] = useState<number | ''>('');
     const [restockQuantity, setRestockQuantity] = useState<number | ''>('');
     const [restockUnitPrice, setRestockUnitPrice] = useState<number | ''>('');
+    
+    // NEW: Sale State
+    const [sellQuantity, setSellQuantity] = useState<number | ''>('');
+    const [sellUnitPrice, setSellUnitPrice] = useState<number | ''>('');
+    const [sellNotes, setSellNotes] = useState<string>('');
 
     const getDefaultExpiryDate = () =>
         new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -197,6 +203,49 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
         }
     };
 
+    const handleSellProduce = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedItem || sellQuantity === '' || sellUnitPrice === '') return;
+        
+        if (Number(sellQuantity) <= 0 || Number(sellUnitPrice) <= 0) {
+            setErrorMessage("Quantity sold and price must be greater than zero.");
+            return;
+        }
+
+        if (Number(sellQuantity) > selectedItem.currentQuantity) {
+            setErrorMessage(`You cannot sell more than the available stock (${selectedItem.currentQuantity}).`);
+            return;
+        }
+
+        setSubmitting(true);
+        setErrorMessage(null);
+
+        try {
+            await inventoryService.recordProduceSale({
+                inventoryId: selectedItem.id,
+                quantitySold: Number(sellQuantity),
+                unitPrice: Number(sellUnitPrice),
+                notes: sellNotes.trim() || undefined
+            });
+            setSuccessMessage(`Successfully recorded sale of ${sellQuantity} ${selectedItem.unit} of ${selectedItem.name}!`);
+            setShowSellModal(false);
+            setSelectedItem(null);
+            setSellQuantity('');
+            setSellUnitPrice('');
+            setSellNotes('');
+            await reloadCurrentFarmStock();
+            setTimeout(() => setSuccessMessage(null), 4000);
+        } catch (err: unknown) {
+            if (axios.isAxiosError(err)) {
+                setErrorMessage(typeof err.response?.data === 'string' ? err.response.data : err.response?.data?.message || 'Failed to record produce sale.');
+            } else {
+                setErrorMessage('An unexpected error occurred.');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const filteredInventories = inventories.filter((item) => {
         const matchesCategory = activeCategory === 'ALL' ? true : activeCategory === 'MEDICINE' ? item.category === 'MEDICINE' || item.category === 'VACCINE' : item.category === activeCategory;
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -207,6 +256,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
     const totalValuation = inventories.reduce((acc, i) => acc + (i.totalValue || 0), 0);
     const feedCount = inventories.filter((i) => i.category === 'FEED').length;
     const medCount = inventories.filter((i) => i.category === 'MEDICINE' || i.category === 'VACCINE').length;
+    const produceCount = inventories.filter((i) => i.category === 'PRODUCE').length;
     const lowStockAlerts = inventories.filter((i) => i.isLowStock).length;
 
     return (
@@ -294,10 +344,10 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-farma-forest/10 pb-5">
                     <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
-                        {(['ALL', 'FEED', 'MEDICINE', 'EQUIPMENT', 'OTHER'] as const).map((cat) => {
+                        {(['ALL', 'FEED', 'MEDICINE', 'EQUIPMENT', 'PRODUCE', 'OTHER'] as const).map((cat) => {
                             const isActive = activeCategory === cat;
-                            const count = cat === 'ALL' ? inventories.length : cat === 'FEED' ? feedCount : cat === 'MEDICINE' ? medCount : inventories.filter(i => i.category === cat).length;
-                            const label = cat === 'ALL' ? 'All Items' : cat === 'FEED' ? 'Feed' : cat === 'MEDICINE' ? 'Meds/Vax' : cat === 'EQUIPMENT' ? 'Equipment' : 'Other';
+                            const count = cat === 'ALL' ? inventories.length : cat === 'FEED' ? feedCount : cat === 'MEDICINE' ? medCount : cat === 'PRODUCE' ? produceCount : inventories.filter(i => i.category === cat).length;
+                            const label = cat === 'ALL' ? 'All Items' : cat === 'FEED' ? 'Feed' : cat === 'MEDICINE' ? 'Meds/Vax' : cat === 'EQUIPMENT' ? 'Equipment' : cat === 'PRODUCE' ? 'Produce' : 'Other';
 
                             return (
                                 <button
@@ -383,7 +433,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                         <div className="flex justify-between items-end">
                                             <span className="text-[10px] font-bold text-farma-forest/60 uppercase tracking-wider">Current Stock</span>
                                             <span className="text-xl font-bold text-farma-forest tabular-nums">
-                                                {item.currentQuantity.toLocaleString()} <span className="text-sm font-semibold text-farma-forest/50">Units</span>
+                                                {item.currentQuantity.toLocaleString()} <span className="text-sm font-semibold text-farma-forest/50">{item.unit}</span>
                                             </span>
                                         </div>
                                         <div className="w-full bg-farma-forest/5 rounded-full h-2 overflow-hidden border border-farma-forest/5">
@@ -393,7 +443,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                             />
                                         </div>
                                         <div className="text-[10px] font-bold text-farma-forest/40 text-right tabular-nums">
-                                            Warning At: {item.lowStockThreshold} Units
+                                            Warning At: {item.lowStockThreshold} {item.unit}
                                         </div>
                                     </div>
 
@@ -430,19 +480,38 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                             >
                                                 <IconAdjust /> Adjust
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedItem(item);
-                                                    setRestockQuantity('');
-                                                    setRestockUnitPrice('');
-                                                    setErrorMessage(null);
-                                                    setShowRestockModal(true);
-                                                }}
-                                                className="px-3 py-2 rounded-md bg-farma-green/10 border border-farma-green/20 hover:bg-farma-green text-farma-green hover:text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
-                                            >
-                                                <IconCart /> Restock
-                                            </button>
+                                            
+                                            {/* Dynamic Button Rendering Based on Produce */}
+                                            {item.category === 'PRODUCE' ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedItem(item);
+                                                        setSellQuantity('');
+                                                        setSellUnitPrice('');
+                                                        setSellNotes('');
+                                                        setErrorMessage(null);
+                                                        setShowSellModal(true);
+                                                    }}
+                                                    className="px-3 py-2 rounded-md bg-farma-gold/10 border border-farma-gold/20 hover:bg-farma-gold text-farma-forest hover:text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
+                                                >
+                                                    <IconBanknotes /> Sell
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedItem(item);
+                                                        setRestockQuantity('');
+                                                        setRestockUnitPrice('');
+                                                        setErrorMessage(null);
+                                                        setShowRestockModal(true);
+                                                    }}
+                                                    className="px-3 py-2 rounded-md bg-farma-green/10 border border-farma-green/20 hover:bg-farma-green text-farma-green hover:text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer transition-colors shadow-sm flex items-center gap-1.5"
+                                                >
+                                                    <IconCart /> Restock
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -640,7 +709,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                 <div className="bg-farma-cream p-4 rounded-xl border border-farma-forest/10 flex flex-col items-center text-center">
                                     <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mb-1">Current Stock</span>
                                     <span className="text-3xl font-bold text-farma-forest tabular-nums">
-                                        {selectedItem.currentQuantity.toLocaleString()} <span className="text-sm text-farma-forest/50 font-semibold">Units</span>
+                                        {selectedItem.currentQuantity.toLocaleString()} <span className="text-sm text-farma-forest/50 font-semibold">{selectedItem.unit}</span>
                                     </span>
                                 </div>
 
@@ -728,7 +797,7 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
-                                            Quantity Bought *
+                                            Quantity Bought ({selectedItem.unit}) *
                                         </label>
                                         <input
                                             type="number"
@@ -792,6 +861,121 @@ export const InventoryManagementView: React.FC<InventoryManagementViewProps> = (
                     </div>
                 </div>
             )}
+
+            {/* NEW: SELL PRODUCE MODAL */}
+            {showSellModal && selectedItem && (
+                <div className="fixed inset-0 bg-farma-forest/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-all duration-300">
+                    <div className="bg-farma-cream border border-farma-gold/40 rounded-xl max-w-md w-full shadow-2xl flex flex-col relative overflow-hidden">
+                        
+                        <div className="h-1.5 w-full bg-farma-gold relative shrink-0 shadow-sm"></div>
+
+                        <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
+                            <div>
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Sell Produce</h4>
+                                <p className="text-[10px] font-bold text-farma-gold uppercase tracking-widest mt-1 truncate max-w-[250px]">
+                                    {selectedItem.name}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowSellModal(false)}
+                                className="text-farma-forest/40 hover:text-farma-terracotta hover:bg-farma-terracotta/10 bg-farma-forest/5 transition-colors p-2 rounded-lg cursor-pointer"
+                            >
+                                <IconClose />
+                            </button>
+                        </div>
+
+                        <div className="p-6 bg-white overflow-y-auto">
+                            <form id="sell-form" onSubmit={handleSellProduce} className="space-y-6">
+                                
+                                <div className="bg-farma-cream p-4 rounded-xl border border-farma-forest/10 flex flex-col items-center text-center">
+                                    <span className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mb-1">Available to Sell</span>
+                                    <span className="text-3xl font-bold text-farma-forest tabular-nums">
+                                        {selectedItem.currentQuantity.toLocaleString()} <span className="text-sm text-farma-forest/50 font-semibold">{selectedItem.unit}</span>
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                            Quantity Sold ({selectedItem.unit}) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0.1"
+                                            max={selectedItem.currentQuantity}
+                                            required
+                                            placeholder="e.g. 30"
+                                            value={sellQuantity === '' ? '' : sellQuantity}
+                                            onChange={(e) => setSellQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                            Price per Unit (₦) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0.1"
+                                            required
+                                            placeholder="e.g. 150"
+                                            value={sellUnitPrice === '' ? '' : sellUnitPrice}
+                                            onChange={(e) => setSellUnitPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm tabular-nums"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
+                                        Sales Notes
+                                    </label>
+                                    <textarea
+                                        rows={2}
+                                        value={sellNotes}
+                                        onChange={(e) => setSellNotes(e.target.value)}
+                                        placeholder="e.g. Sold to local market vendor."
+                                        className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow shadow-sm resize-none"
+                                    />
+                                </div>
+                                
+                                {sellQuantity !== '' && sellUnitPrice !== '' && (
+                                    <div className="pt-2">
+                                        <div className="p-3 bg-farma-gold/10 rounded-lg flex justify-between items-center border border-farma-gold/20">
+                                            <span className="text-[10px] font-bold text-farma-forest/80 uppercase tracking-wider">Total Revenue Generated</span>
+                                            <span className="font-bold text-farma-forest tabular-nums">
+                                                ₦{(Number(sellQuantity) * Number(sellUnitPrice)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </form>
+                        </div>
+
+                        <div className="p-5 bg-farma-sand border-t border-farma-forest/10 shrink-0 flex flex-col sm:flex-row items-center justify-end gap-3 z-10">
+                            <button
+                                type="button"
+                                onClick={() => setShowSellModal(false)}
+                                className="w-full sm:w-auto px-5 py-3 rounded-lg bg-transparent hover:bg-farma-forest/5 text-farma-forest/60 hover:text-farma-forest font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="sell-form"
+                                disabled={submitting || sellQuantity === '' || sellUnitPrice === '' || Number(sellQuantity) <= 0 || Number(sellUnitPrice) <= 0}
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg bg-farma-gold hover:bg-[#c49332] text-farma-forest font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50"
+                            >
+                                {submitting ? 'Processing...' : 'Record Sale'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -833,6 +1017,12 @@ const IconAdjust = () => (
 const IconCart = () => (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+);
+
+const IconBanknotes = () => (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
 );
 

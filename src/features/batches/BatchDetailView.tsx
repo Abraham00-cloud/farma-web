@@ -28,6 +28,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         administrationMethod: '',
         mortalityCount: 0,
         averageWeight: 0,
+        eggsCollected: 0, 
         observations: '',
     });
 
@@ -94,6 +95,12 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         };
     }, [batchId]);
 
+    // --- THE BULLETPROOF EGG CHECK ---
+    const isEggBatch = batch ? (
+        String(batch.productionType || '').toUpperCase().includes('EGG') || 
+        String(batch.sectionName || '').toUpperCase().includes('LAYER')
+    ) : false;
+
     const handleCreateDailyLog = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!batch) return;
@@ -109,6 +116,8 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
             medicineQuantityUsed: logForm.medicineQuantityUsed ? Number(logForm.medicineQuantityUsed) : undefined,
             administrationMethod: logForm.administrationMethod ? logForm.administrationMethod.trim() : undefined,
             averageWeight: logForm.averageWeight ? Number(logForm.averageWeight) : undefined,
+            // Now safely uses the robust boolean
+            eggsCollected: (isEggBatch && logForm.eggsCollected) ? Number(logForm.eggsCollected) : undefined,
             observations: logForm.observations ? logForm.observations.trim() : undefined,
         };
 
@@ -123,6 +132,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                 administrationMethod: '',
                 mortalityCount: 0,
                 averageWeight: 0,
+                eggsCollected: 0,
                 observations: '',
             });
             await loadData();
@@ -222,6 +232,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
         : '100';
 
     const totalFeedConsumed = logs.reduce((acc, curr) => acc + (curr.feedQuantityUsed || 0), 0);
+    const totalEggsCollected = logs.reduce((acc, curr) => acc + (curr.eggsCollected || 0), 0);
 
     return (
         <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-16">
@@ -255,7 +266,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                             className="px-5 py-2.5 rounded-lg bg-farma-forest hover:bg-farma-green-light text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center space-x-2 cursor-pointer"
                         >
                             <IconHarvest />
-                            <span>Record Sale / Harvest</span>
+                            <span>Record Bird Sale / Cull</span>
                         </button>
                     </div>
                 )}
@@ -322,7 +333,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-farma-forest/10">
+                <div className={`grid grid-cols-2 gap-4 pt-4 border-t border-farma-forest/10 ${isEggBatch ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                     <div className="bg-white p-5 rounded-xl border border-farma-forest/5 shadow-sm">
                         <span className="text-farma-forest/50 text-[10px] font-bold uppercase tracking-widest block mb-1">
                             Current Live Birds
@@ -331,6 +342,18 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                             {batch.currentCount.toLocaleString()}
                         </div>
                     </div>
+
+                    {isEggBatch && (
+                        <div className="bg-white p-5 rounded-xl border border-farma-gold/30 shadow-sm">
+                            <span className="text-farma-gold text-[10px] font-bold uppercase tracking-widest block mb-1">
+                                Total Eggs Laid
+                            </span>
+                            <div className="text-2xl font-bold text-farma-forest tabular-nums">
+                                {totalEggsCollected.toLocaleString()}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-farma-terracotta/5 p-5 rounded-xl border border-farma-terracotta/10 shadow-sm">
                         <span className="text-farma-terracotta/70 text-[10px] font-bold uppercase tracking-widest block mb-1">
                             Total Mortality
@@ -374,6 +397,9 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                             <thead className="bg-farma-sand/50 border-b border-farma-forest/10 text-[10px] font-bold uppercase tracking-widest text-farma-forest/60">
                                 <tr>
                                     <th className="px-6 py-4 whitespace-nowrap">Date</th>
+                                    {isEggBatch && (
+                                        <th className="px-6 py-4 whitespace-nowrap text-farma-gold">Eggs</th>
+                                    )}
                                     <th className="px-6 py-4 whitespace-nowrap">Feed Used</th>
                                     <th className="px-6 py-4 whitespace-nowrap">Meds Given</th>
                                     <th className="px-6 py-4 whitespace-nowrap">Mortality</th>
@@ -389,6 +415,11 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                             <td className="px-6 py-4 font-bold text-farma-forest tabular-nums">
                                                 {log.logDate}
                                             </td>
+                                            {isEggBatch && (
+                                                <td className="px-6 py-4 font-bold text-farma-forest tabular-nums">
+                                                    {log.eggsCollected && log.eggsCollected > 0 ? log.eggsCollected : '-'}
+                                                </td>
+                                            )}
                                             <td className="px-6 py-4 font-bold text-farma-gold tabular-nums">
                                                 {log.feedQuantityUsed ? `${log.feedQuantityUsed} units` : '-'}
                                             </td>
@@ -411,7 +442,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-16 text-center bg-transparent">
+                                        <td colSpan={isEggBatch ? 8 : 7} className="px-6 py-16 text-center bg-transparent">
                                             <div className="flex flex-col items-center justify-center space-y-4">
                                                 <div className="w-14 h-14 rounded-full bg-farma-sand flex items-center justify-center text-farma-forest/30 shadow-inner border border-farma-forest/5">
                                                     <IconEmptyLedger />
@@ -521,20 +552,54 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                         />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-1.5 pl-1">
-                                            Avg Bird Wt (kg)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={logForm.averageWeight || ''}
-                                            onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
-                                            className={`${inputClassesGold} tabular-nums`}
-                                        />
-                                    </div>
+                                    {!isEggBatch && (
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-1.5 pl-1">
+                                                Avg Bird Wt (kg)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={logForm.averageWeight || ''}
+                                                onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
+                                                className={`${inputClassesGold} tabular-nums`}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
+
+                                {isEggBatch && (
+                                    <div className="grid grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-gold mb-1.5 pl-1">
+                                                Eggs Collected
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={logForm.eggsCollected || ''}
+                                                onChange={(e) => setLogForm({ ...logForm, eggsCollected: Number(e.target.value) })}
+                                                className={`${inputClassesGold} tabular-nums border-farma-gold/30 bg-farma-gold/5`}
+                                                placeholder="Total Pieces"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-1.5 pl-1">
+                                                Avg Bird Wt (kg)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={logForm.averageWeight || ''}
+                                                onChange={(e) => setLogForm({ ...logForm, averageWeight: Number(e.target.value) })}
+                                                className={`${inputClassesGold} tabular-nums`}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-1.5 pl-1">
@@ -545,7 +610,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                         maxLength={500}
                                         value={logForm.observations || ''}
                                         onChange={(e) => setLogForm({ ...logForm, observations: e.target.value })}
-                                        placeholder="e.g. Normal feed intake today. Weather was hot."
+                                        placeholder="e.g. Normal feed intake today."
                                         className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm focus:outline-none focus:ring-2 focus:border-farma-gold focus:ring-farma-gold/30 transition-shadow shadow-sm resize-none"
                                     />
                                 </div>
@@ -581,7 +646,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
 
                         <div className="flex items-center justify-between border-b border-farma-forest/10 p-6 bg-white shrink-0">
                             <div>
-                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Record Sale</h4>
+                                <h4 className="text-xl font-bold text-farma-forest tracking-tight">Record Bird Sale / Cull</h4>
                                 <p className="text-[10px] font-bold text-farma-forest/50 uppercase tracking-widest mt-1.5">
                                     Current Pen Balance: <strong className="text-farma-green tabular-nums">{batch.currentCount} birds</strong>
                                 </p>
@@ -610,8 +675,8 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                         <span className={`block text-sm font-bold transition-colors ${harvestForm.isFinalHarvest ? 'text-farma-green' : 'text-farma-forest'}`}>Final Batch Harvest?</span>
                                         <span className="block text-[10px] text-farma-forest/60 mt-1 font-semibold">
                                             {harvestForm.isFinalHarvest 
-                                                ? 'Yes. This will clear the pen and unlock the facility.' 
-                                                : 'No. Just recording a partial sale. Keep batch active.'}
+                                                ? 'Yes. This clears the pen (e.g. spent hens).' 
+                                                : 'No. Just recording a partial bird sale.'}
                                         </span>
                                     </div>
                                     <div className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none ${harvestForm.isFinalHarvest ? 'bg-farma-green' : 'bg-farma-forest/20'}`}>
@@ -671,7 +736,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                         rows={2}
                                         value={harvestForm.notes}
                                         onChange={(e) => setHarvestForm({ ...harvestForm, notes: e.target.value })}
-                                        placeholder="e.g. Sold 500 birds to local vendor."
+                                        placeholder="e.g. Sold spent hens to local vendor."
                                         className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm focus:outline-none focus:ring-2 focus:border-farma-green focus:ring-farma-green/30 transition-shadow shadow-sm resize-none"
                                     />
                                 </div>
@@ -692,7 +757,7 @@ export const BatchDetailView: React.FC<BatchDetailViewProps> = ({ batchId, onBac
                                 disabled={submitting}
                                 className={`px-6 py-3 rounded-lg text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50 ${harvestForm.isFinalHarvest ? 'bg-farma-terracotta hover:bg-[#c65e43]' : 'bg-farma-forest hover:bg-farma-green-light'}`}
                             >
-                                {submitting ? 'Processing...' : harvestForm.isFinalHarvest ? 'Close Batch' : 'Record Sale'}
+                                {submitting ? 'Processing...' : harvestForm.isFinalHarvest ? 'Close Batch' : 'Record Bird Sale'}
                             </button>
                         </div>
                     </div>

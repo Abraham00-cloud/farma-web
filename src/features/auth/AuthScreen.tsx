@@ -34,6 +34,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
     const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
     const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
 
+    // --- SECURITY: Rate Limiting & Cooldown State ---
+    const [failedAttempts, setFailedAttempts] = useState<number>(0);
+    const [lockoutTimer, setLockoutTimer] = useState<number>(0);
+
     const [loginData, setLoginData] = useState<LoginRequestDto>({
         email: '',
         password: '',
@@ -51,7 +55,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         password: '',
     });
 
-    // --- NEW: Password validation state ---
     const [passwordValidations, setPasswordValidations] = useState({
         length: false,
         casing: false,
@@ -60,6 +63,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
     });
 
     const isPasswordStrong = Object.values(passwordValidations).every(Boolean);
+
+    // Handle cooldown timer countdown
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (lockoutTimer > 0) {
+            timer = setTimeout(() => setLockoutTimer(prev => prev - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [lockoutTimer]);
 
     const handlePasswordChange = (password: string) => {
         setRegData({ ...regData, password });
@@ -73,35 +85,50 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (lockoutTimer > 0) return; // Prevent submission if locked out
+
         setLoading(true);
         setErrorMessage(null);
 
         try {
             const response = await authService.login(loginData);
+            
+            // Reset attempts on successful login
+            setFailedAttempts(0); 
             onAuthSuccess(response);
 
-            // --- NEW: The Gatekeeper Interceptor ---
             if (response.requiresPasswordChange) {
                 navigate('/auth/setup-password', { replace: true });
-                return; // Stop execution so they don't go to the dashboard
+                return; 
             }
 
             const userRole = response.role?.toUpperCase();
             const targetPath = (userRole === 'MANAGER') ? '/manager/dashboard' : '/proprietor/dashboard';
             navigate(targetPath, { replace: true });
+
         } catch (error: unknown) {
-            if (axios.isAxiosError(error)) {
-                const status = error.response?.status;
-                if (status === 401 || status === 403 || status === 404) {
-                    setErrorMessage('Invalid email or password. Please try again.');
-                } else {
-                    setErrorMessage(error.response?.data?.message || 'Login failed. Please try again later.');
+            // SECURITY: Increment failed attempts and trigger lock-out if needed
+            setFailedAttempts((prev) => {
+                const newAttempts = prev + 1;
+                if (newAttempts >= 4) {
+                    setLockoutTimer(30); // Lock out for 30 seconds after 4 failed attempts
+                    return 0; // Reset counter for the next window
                 }
+                return newAttempts;
+            });
+
+            // SECURITY: Anti-Enumeration. Mask ALL authentication errors as generic invalid credentials.
+            // Do NOT use error.response.data.message here.
+            if (axios.isAxiosError(error) && !error.response) {
+                setErrorMessage('Network error. Please check your internet connection.');
             } else {
-                setErrorMessage('A network error occurred. Please check your connection.');
+                setErrorMessage('Invalid email or password. Please check your credentials and try again.');
             }
         } finally {
             setLoading(false);
+            // Clear the password field on failure to force re-entry
+            setLoginData(prev => ({ ...prev, password: '' })); 
         }
     };
 
@@ -112,22 +139,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         setSuccessMessage(null);
 
         try {
-            // ✅ THE MISSING API CALL
-            await axios.post('https://api.farma.com.ng/api/v1/auth/forgot-password', {
-                email: resetEmail
-            });
-
-            // Show success message only AFTER the backend confirms
-            setSuccessMessage(
-                isManager
-                    ? 'If your email is registered, we have sent password reset instructions to your inbox. You can also ask the organisation owner to reset it for you.'
-                    : 'If your email is registered, we have sent a secure password reset link to your inbox.'
-            );
+            // Replaced hardcoded URL with the proper service method
+            // Ensure authService.forgotPassword(email) exists in your service layer
+            await authService.forgotPassword({ email: resetEmail });
         } catch (error) {
-            console.error("Forgot password request failed:", error);
-            setErrorMessage('Unable to process request right now. Please try again later.');
+            // SECURITY: Anti-Enumeration. We deliberately swallow errors here.
+            // Even if the backend throws a 404 (Email not found), we ignore it.
+            console.debug("Password reset request processed."); 
         } finally {
             setLoading(false);
+            
+            // SECURITY: Always show success message regardless of actual backend outcome
+            setSuccessMessage(
+                isManager
+                    ? 'If your email is registered, we have sent password reset instructions to your inbox.'
+                    : 'If your email is registered, we have sent a secure password reset link to your inbox.'
+            );
+            setResetEmail(''); // Clear the input
         }
     };
 
@@ -151,12 +179,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                 const status = error.response?.status;
                 const serverMsg = error.response?.data?.message;
 
+                // For registration, it is standard to inform the user if an account exists
                 if (status === 409 || (serverMsg && serverMsg.toLowerCase().includes('already'))) {
-                    setErrorMessage('A farm organisation or user with this email or registration number already exists.');
+                    setErrorMessage('An account with this email or registration number already exists.');
                 } else if (status === 400) {
                     setErrorMessage('Please ensure all required fields are filled out correctly.');
                 } else {
-                    setErrorMessage(serverMsg || 'Registration failed. Please try again.');
+                    setErrorMessage('Registration failed. Please try again.');
                 }
             } else {
                 setErrorMessage('A network error occurred. Please check your connection.');
@@ -166,21 +195,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
         }
     };
 
-    // This single variable replaces hundreds of lines of repeated CSS!
     const inputClasses = "w-full px-4 py-3 rounded-xl bg-[#ECE6D6]/50 border border-[#101B14]/10 text-[#101B14] text-sm placeholder-[#8FA091] focus:bg-white focus:outline-none focus:border-[#D9A63E] focus:ring-4 focus:ring-[#D9A63E]/20 transition-all duration-300";
 
     return (
         <div className="min-h-screen bg-[#ECE6D6] relative flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 font-sans overflow-hidden">
 
-            {/* Aesthetic Ambient Background Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#3F6B47] rounded-full mix-blend-multiply filter blur-[128px] opacity-40 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-[#D9A63E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
 
-            {/* Main Form Container - 🟢 FIXED: Only expand to 4xl if it's explicitly the Registration view */}
             <div className={`relative sm:mx-auto sm:w-full z-10 transition-all duration-500 ${!isLogin && !isForgotPassword ? 'sm:max-w-4xl' : 'sm:max-w-[28rem]'}`}>
                 <div className="bg-[#FBF9F5] py-8 sm:py-10 px-6 sm:px-12 shadow-2xl shadow-[#101B14]/10 border border-white/60 rounded-[2rem] backdrop-blur-sm">
 
-                    {/* Integrated Professional Branding Header (Icon + Text) */}
                     <div className="text-center mb-8">
                         <button 
                             onClick={() => navigate('/')} 
@@ -198,7 +223,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                             {isForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back' : 'Register Your Farm'}
                         </h2>
 
-                        {/* Dynamic Portal Subtitle */}
                         <p className="text-[10px] font-bold tracking-widest text-[#3F6B47] uppercase mt-2">
                             {isManager 
                                 ? 'Farm Manager Portal' 
@@ -238,6 +262,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                 <input
                                     type="email"
                                     required
+                                    autoComplete="username"
                                     value={resetEmail}
                                     onChange={(e) => setResetEmail(e.target.value)}
                                     placeholder={isManager ? "manager@farma.com.ng" : "owner@farma.com.ng"}
@@ -270,17 +295,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                     <input
                                         type="email"
                                         required
+                                        autoComplete="username"
                                         value={loginData.email}
                                         onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                                         placeholder={isManager ? "manager@farma.com.ng" : "owner@farma.com.ng"}
                                         className={inputClasses}
+                                        disabled={lockoutTimer > 0}
                                     />
                                 </div>
 
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5 px-1">
                                         <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60">Password</label>
-                                        <button type="button" onClick={() => { setIsForgotPassword(true); setErrorMessage(null); setSuccessMessage(null); }} className="text-[10px] font-bold text-[#3F6B47] hover:text-[#2A5C38] transition-colors cursor-pointer">
+                                        <button type="button" onClick={() => { setIsForgotPassword(true); setErrorMessage(null); setSuccessMessage(null); }} className="text-[10px] font-bold text-[#3F6B47] hover:text-[#2A5C38] transition-colors cursor-pointer" disabled={lockoutTimer > 0}>
                                             Forgot Password?
                                         </button>
                                     </div>
@@ -288,15 +315,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                         <input
                                             type={showLoginPassword ? 'text' : 'password'}
                                             required
+                                            autoComplete="current-password"
                                             value={loginData.password}
                                             onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                                             placeholder="••••••••"
                                             className={`${inputClasses} pr-12`}
+                                            disabled={lockoutTimer > 0}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowLoginPassword(!showLoginPassword)}
-                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#8FA091] hover:text-[#101B14] transition-colors cursor-pointer"
+                                            disabled={lockoutTimer > 0}
+                                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#8FA091] hover:text-[#101B14] transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             {showLoginPassword ? (
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -309,10 +339,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
 
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="w-full mt-4 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#D9A63E] to-[#c49332] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-[#D9A63E]/20 hover:shadow-[#D9A63E]/40 hover:-translate-y-0.5 focus:outline-none transform transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                                    disabled={loading || lockoutTimer > 0}
+                                    className={`w-full mt-4 py-3.5 px-4 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow-lg transform transition-all duration-300 flex items-center justify-center space-x-2 cursor-pointer
+                                        ${lockoutTimer > 0 
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' 
+                                            : 'bg-gradient-to-r from-[#D9A63E] to-[#c49332] text-[#101B14] shadow-[#D9A63E]/20 hover:shadow-[#D9A63E]/40 hover:-translate-y-0.5 focus:outline-none disabled:opacity-50'
+                                        }`}
                                 >
-                                    {loading ? (
+                                    {lockoutTimer > 0 ? (
+                                        <span>Try again in {lockoutTimer}s</span>
+                                    ) : loading ? (
                                         <>
                                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#101B14]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                             <span>Authenticating...</span>
@@ -336,7 +372,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                         <div>
                             <form onSubmit={handleRegisterSubmit} className="space-y-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    {/* Step 1: Organisation Details */}
                                     <div className="bg-white p-5 rounded-2xl border border-[#101B14]/5 shadow-sm space-y-4 h-full">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#3F6B47]/10 text-[#3F6B47] text-[10px] font-bold">1</span>
@@ -359,7 +394,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                         </div>
                                     </div>
 
-                                    {/* Step 2: Owner Details */}
                                     <div className="bg-white p-5 rounded-2xl border border-[#101B14]/5 shadow-sm space-y-4 h-full">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#D9A63E]/20 text-[#c49332] text-[10px] font-bold">2</span>
@@ -368,21 +402,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">First Name</label>
-                                                <input type="text" required value={regData.adminFirstName} onChange={(e) => setRegData({ ...regData, adminFirstName: e.target.value })} placeholder="Abraham" className={inputClasses} />
+                                                <input type="text" required autoComplete="given-name" value={regData.adminFirstName} onChange={(e) => setRegData({ ...regData, adminFirstName: e.target.value })} placeholder="Abraham" className={inputClasses} />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">Last Name</label>
-                                                <input type="text" required value={regData.adminLastName} onChange={(e) => setRegData({ ...regData, adminLastName: e.target.value })} placeholder="Alagbe" className={inputClasses} />
+                                                <input type="text" required autoComplete="family-name" value={regData.adminLastName} onChange={(e) => setRegData({ ...regData, adminLastName: e.target.value })} placeholder="Alagbe" className={inputClasses} />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">Email Address</label>
-                                            <input type="email" required value={regData.email} onChange={(e) => setRegData({ ...regData, email: e.target.value })} placeholder="owner@farma.com.ng" className={inputClasses} />
+                                            <input type="email" required autoComplete="username" value={regData.email} onChange={(e) => setRegData({ ...regData, email: e.target.value })} placeholder="owner@farma.com.ng" className={inputClasses} />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">Password (Min 8 chars)</label>
                                             <div className="relative">
-                                                <input type={showRegPassword ? 'text' : 'password'} required minLength={8} value={regData.password} onChange={(e) => handlePasswordChange(e.target.value)} placeholder="••••••••" className={`${inputClasses} pr-12`} />
+                                                <input type={showRegPassword ? 'text' : 'password'} required autoComplete="new-password" minLength={8} value={regData.password} onChange={(e) => handlePasswordChange(e.target.value)} placeholder="••••••••" className={`${inputClasses} pr-12`} />
                                                 <button type="button" onClick={() => setShowRegPassword(!showRegPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#8FA091] hover:text-[#101B14] transition-colors cursor-pointer">
                                                     {showRegPassword ? (
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
@@ -392,7 +426,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, portalTyp
                                                 </button>
                                             </div>
                                             
-                                            {/* --- NEW: Dynamic Password Checklist --- */}
                                             <div className="mt-2 space-y-1.5 p-3 bg-[#101B14]/5 rounded-xl border border-[#101B14]/10">
                                                 <div className={`text-[10px] font-bold tracking-wide flex items-center transition-colors ${passwordValidations.length ? 'text-[#3F6B47]' : 'text-[#101B14]/40'}`}>
                                                     <span className="mr-2 text-xs">{passwordValidations.length ? '✅' : '○'}</span> At least 8 characters

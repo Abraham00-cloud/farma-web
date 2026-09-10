@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { InventoryRequestDto, InventoryResponseDto } from '../types/inventory';
+import type { InventoryRequestDto, InventoryResponseDto, ProduceSaleRequestDto } from '../types/inventory';
 import type { SpringPage } from '../types/pagination';
 
 export const inventoryService = {
@@ -24,6 +24,11 @@ export const inventoryService = {
         return response.data;
     },
 
+    // NEW: POST /api/v1/inventories/produce/sale
+    recordProduceSale: async (data: ProduceSaleRequestDto): Promise<void> => {
+        await apiClient.post('/inventories/produce/sale', data);
+    },
+
     // GET /api/v1/inventories/farm/{farmId}
     getInventoriesByFarm: async (
         farmId: number, 
@@ -33,7 +38,6 @@ export const inventoryService = {
         const response = await apiClient.get<SpringPage<InventoryResponseDto>>(
             `/inventories/farm/${farmId}?page=${page}&size=${size}`
         );
-        // Extract the array from the paginated object
         return response.data.content;
     },
 

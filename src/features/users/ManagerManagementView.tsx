@@ -140,14 +140,8 @@ export const ManagerManagementView: React.FC<ManagerManagementViewProps> = ({
             <div className="flex flex-col gap-6 border-b border-farma-forest/10 pb-8">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5">
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="w-2 h-2 rounded-full bg-farma-green"></span>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-farma-green">
-                                Team Management
-                            </span>
-                        </div>
                         <h3 className="text-3xl md:text-4xl font-bold text-farma-forest tracking-tight">
-                            Site Managers
+                            Farm Managers
                         </h3>
                         <p className="text-sm text-farma-forest/70 font-medium mt-2 max-w-xl leading-relaxed">
                             Add and manage the team members who oversee daily farm operations, update flock logs, and monitor facility resources.

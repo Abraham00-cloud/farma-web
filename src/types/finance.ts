@@ -45,3 +45,27 @@ export interface FarmFinancialOverviewDto {
     batchSummaries: BatchFinancialSummaryDto[];
     expenseBreakdownChart: FinancialCategoryBreakdownDto[];
 }
+
+// NEW: Valuation Engine DTOs
+export interface ValuationRequestDto {
+    scope: 'BATCH' | 'FARM' | 'ORGANISATION';
+    scopeId: number;
+    projectedPricePerKg?: number;
+    projectedPricePerProduceUnit?: number;
+}
+
+export interface ValuationResponseDto {
+    scope: string;
+    scopeName: string;
+    liveBirds: number;
+    totalWeightKg: number;
+    produceUnits: number;
+    
+    realizedRevenue: number;       // Money already earned
+    totalUnsoldAssetValue: number; // Future value of live birds + stocked eggs
+    totalProjectedRevenue: number; // realizedRevenue + totalUnsoldAssetValue
+    actualSunkCosts: number;       // Sunk costs
+    
+    projectedNetProfit: number;
+    profitMargin: number;
+}

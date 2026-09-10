@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { infrastructureService } from '../../services/infrastructureService';
 import { batchService } from '../../services/batchService';
@@ -6,7 +6,7 @@ import { financeService } from '../../services/financeService';
 import { transactionService } from '../../services/transactionService';
 import type { FarmResponseDto } from '../../types/infrastructure';
 import type { BatchResponseDto } from '../../types/batch';
-import type { FarmFinancialOverviewDto, BatchFinancialPnlResponseDto } from '../../types/finance';
+import type { FarmFinancialOverviewDto, BatchFinancialPnlResponseDto, ValuationRequestDto, ValuationResponseDto } from '../../types/finance';
 import type {
     TransactionRequestDto,
     TransactionResponseDto,
@@ -32,11 +32,25 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
     const [selectedBatchId, setSelectedBatchId] = useState<number | 'ALL'>('ALL');
 
-    const [activeTabMode, setActiveTabMode] = useState<'ANALYTICS' | 'LEDGER'>('ANALYTICS');
+    const [activeTabMode, setActiveTabMode] = useState<'ANALYTICS' | 'LEDGER' | 'ESTIMATOR'>('ANALYTICS');
 
     const [farmOverview, setFarmOverview] = useState<FarmFinancialOverviewDto | null>(null);
     const [batchPnl, setBatchPnl] = useState<BatchFinancialPnlResponseDto | null>(null);
     const [transactions, setTransactions] = useState<TransactionResponseDto[]>([]);
+
+    const [valForm, setValForm] = useState<ValuationRequestDto>({
+        scope: 'ORGANISATION', 
+        scopeId: organisationId,
+        projectedPricePerKg: 3500,
+        projectedPricePerProduceUnit: 120,
+    });
+    const [valResult, setValResult] = useState<ValuationResponseDto | null>(null);
+    const [valLoading, setValLoading] = useState(false);
+
+    // --- Searchable Dropdown State ---
+    const [flockSearchQuery, setFlockSearchQuery] = useState('');
+    const [isFlockDropdownOpen, setIsFlockDropdownOpen] = useState(false);
+    const flockDropdownRef = useRef<HTMLDivElement>(null);
 
     const [loading, setLoading] = useState<boolean>(true);
     const [submitting, setSubmitting] = useState<boolean>(false);
@@ -44,7 +58,6 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const [showTxModal, setShowTxModal] = useState<boolean>(false);
-
     const [showExportModal, setShowExportModal] = useState<boolean>(false);
     const [exporting, setExporting] = useState<boolean>(false);
 
@@ -64,6 +77,17 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
         endDate: getTodayISOString()
     });
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (flockDropdownRef.current && !flockDropdownRef.current.contains(event.target as Node)) {
+                setIsFlockDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -104,6 +128,10 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                 if (isMounted) {
                     setBatches(flatBatches);
                     setTxForm((prev) => ({ ...prev, batchId: '' }));
+                    
+                    if (valForm.scope === 'BATCH' && valForm.scopeId === 0 && flatBatches.length > 0) {
+                        setValForm(prev => ({ ...prev, scopeId: flatBatches[0].id }));
+                    }
                 }
             } catch {
                 if (isMounted) setBatches([]);
@@ -118,6 +146,8 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         if (!selectedFarmId) return;
 
         const loadData = async () => {
+            if (activeTabMode === 'ESTIMATOR') return;
+
             setLoading(true);
             setErrorMessage(null);
             try {
@@ -152,7 +182,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         };
         loadData();
         return () => { isMounted = false; };
-    }, [selectedFarmId, selectedBatchId, organisationId]);
+    }, [selectedFarmId, selectedBatchId, organisationId, activeTabMode]);
 
     const reloadData = async () => {
         if (!selectedFarmId) return;
@@ -238,11 +268,57 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
         }
     };
 
+    const handleRunValuation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setValLoading(true);
+        setErrorMessage(null);
+
+        try {
+            const data = await financeService.calculateProjectedValuation({
+                scope: valForm.scope,
+                scopeId: valForm.scope === 'ORGANISATION' ? organisationId : valForm.scopeId,
+                projectedPricePerKg: Number(valForm.projectedPricePerKg),
+                projectedPricePerProduceUnit: Number(valForm.projectedPricePerProduceUnit),
+            });
+            setValResult(data);
+        } catch (err: unknown) {
+            if (axios.isAxiosError(err)) {
+                setErrorMessage(err.response?.data?.message || 'Failed to calculate projections.');
+            } else {
+                setErrorMessage('An unexpected error occurred.');
+            }
+        } finally {
+            setValLoading(false);
+        }
+    };
+
     const activeRevenue = batchPnl ? batchPnl.totalRevenue || 0 : farmOverview ? farmOverview.totalRevenue || 0 : 0;
     const activeExpenses = batchPnl ? batchPnl.totalExpenses || 0 : farmOverview ? farmOverview.totalExpenses || 0 : 0;
     const activeNetProfit = batchPnl ? batchPnl.netProfitOrLoss || 0 : farmOverview ? farmOverview.totalNetProfit || 0 : 0;
     const activeMargin = batchPnl ? batchPnl.profitMarginPercentage || 0 : farmOverview ? farmOverview.overallMarginPercentage || 0 : 0;
     const expenseBreakdown = batchPnl ? batchPnl.expenseBreakdownChart || [] : farmOverview ? farmOverview.expenseBreakdownChart || [] : [];
+    
+    const isValProfitable = valResult && valResult.projectedNetProfit >= 0;
+    const isValidValuation = valForm.scope === 'ORGANISATION' || valForm.scopeId > 0;
+
+    // Filter batches for the search dropdown
+    const filteredBatches = batches.filter(b => 
+        b.batchNumber.toLowerCase().includes(flockSearchQuery.toLowerCase()) || 
+        b.sectionName.toLowerCase().includes(flockSearchQuery.toLowerCase())
+    );
+
+    // Helper to get the display name for the selected batch
+    const getSelectedBatchDisplay = () => {
+        if (selectedBatchId === 'ALL') return 'All Flocks (Overview)';
+        const b = batches.find(b => b.id === selectedBatchId);
+        return b ? `${b.sectionName} (#${b.batchNumber})` : 'Select Flock';
+    };
+
+    const getEstimatorBatchDisplay = () => {
+        if (valForm.scopeId === 0) return '-- Choose a Flock --';
+        const b = batches.find(b => b.id === valForm.scopeId);
+        return b ? `${b.sectionName} (#${b.batchNumber})` : '-- Choose a Flock --';
+    };
 
     return (
         <div className="space-y-6 lg:space-y-8 font-sans max-w-7xl mx-auto pb-12">
@@ -293,7 +369,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
             <div className="bg-farma-cream border border-farma-forest/10 rounded-xl p-5 shadow-sm space-y-5">
                 <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-farma-forest/10 pb-5">
 
-                    <div className="flex items-center space-x-2 bg-white border border-farma-forest/10 p-1.5 rounded-lg w-fit shrink-0">
+                    <div className="flex items-center space-x-2 bg-white border border-farma-forest/10 p-1.5 rounded-lg w-fit shrink-0 overflow-x-auto">
                         <button
                             type="button"
                             onClick={() => setActiveTabMode('ANALYTICS')}
@@ -314,41 +390,337 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                         >
                             Records ({transactions.length})
                         </button>
+                        
+                        {isProprietor && (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTabMode('ESTIMATOR')}
+                                className={`px-5 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${activeTabMode === 'ESTIMATOR'
+                                        ? 'bg-farma-gold text-farma-forest shadow-sm'
+                                        : 'text-farma-forest/60 hover:text-farma-gold hover:bg-farma-forest/5'
+                                    }`}
+                            >
+                                <IconCalculator /> Profit Forecaster
+                            </button>
+                        )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
-                        <div className="w-full sm:w-auto flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Farm</span>
-                            <select
-                                value={selectedFarmId}
-                                onChange={(e) => {
-                                    setSelectedFarmId(Number(e.target.value));
-                                    setSelectedBatchId('ALL');
-                                }}
-                                disabled={!isProprietor && farms.length <= 1}
-                                className="w-full sm:w-64 px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer disabled:opacity-50"
-                            >
-                                {farms.map((f) => (
-                                    <option key={f.id} value={f.id}>{f.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                    {activeTabMode !== 'ESTIMATOR' && (
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                            <div className="w-full sm:w-auto flex flex-col">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Farm</span>
+                                <select
+                                    value={selectedFarmId}
+                                    onChange={(e) => {
+                                        setSelectedFarmId(Number(e.target.value));
+                                        setSelectedBatchId('ALL');
+                                    }}
+                                    disabled={!isProprietor && farms.length <= 1}
+                                    className="w-full sm:w-64 px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer disabled:opacity-50"
+                                >
+                                    {farms.map((f) => (
+                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                        <div className="w-full sm:w-auto flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Flock</span>
-                            <select
-                                value={selectedBatchId}
-                                onChange={(e) => setSelectedBatchId(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-                                className="w-full sm:w-64 px-4 py-2.5 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm cursor-pointer"
-                            >
-                                <option value="ALL">All Flocks (Overview)</option>
-                                {batches.map((b) => (
-                                    <option key={b.id} value={b.id}>{b.sectionName} (#{b.batchNumber})</option>
-                                ))}
-                            </select>
+                            <div className="w-full sm:w-auto flex flex-col relative" ref={flockDropdownRef}>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-farma-forest/50 mb-1 ml-1">Select Flock</span>
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsFlockDropdownOpen(!isFlockDropdownOpen)}
+                                    className="w-full sm:w-64 px-4 py-2.5 text-left rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-green/30 transition-shadow shadow-sm flex items-center justify-between"
+                                >
+                                    <span className="truncate">{getSelectedBatchDisplay()}</span>
+                                    <IconChevronDown />
+                                </button>
+
+                                {isFlockDropdownOpen && (
+                                    <div className="absolute top-[60px] left-0 w-full bg-white border border-farma-forest/20 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col max-h-[300px]">
+                                        <div className="p-2 border-b border-farma-forest/10 bg-farma-cream sticky top-0">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Search flocks..."
+                                                value={flockSearchQuery}
+                                                onChange={(e) => setFlockSearchQuery(e.target.value)}
+                                                className="w-full px-3 py-2 text-sm bg-white border border-farma-forest/20 rounded-md focus:outline-none focus:ring-1 focus:ring-farma-green/50"
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto flex-1">
+                                            <div 
+                                                onClick={() => { setSelectedBatchId('ALL'); setIsFlockDropdownOpen(false); setFlockSearchQuery(''); }}
+                                                className={`px-4 py-3 text-sm cursor-pointer border-b border-farma-forest/5 ${selectedBatchId === 'ALL' ? 'bg-farma-forest/5 font-bold text-farma-forest' : 'text-farma-forest/80 hover:bg-farma-cream'}`}
+                                            >
+                                                All Flocks (Overview)
+                                            </div>
+                                            {filteredBatches.length > 0 ? (
+                                                filteredBatches.map(b => (
+                                                    <div 
+                                                        key={b.id}
+                                                        onClick={() => { setSelectedBatchId(b.id); setIsFlockDropdownOpen(false); setFlockSearchQuery(''); }}
+                                                        className={`px-4 py-3 text-sm cursor-pointer border-b border-farma-forest/5 ${selectedBatchId === b.id ? 'bg-farma-forest/5 font-bold text-farma-forest' : 'text-farma-forest/80 hover:bg-farma-cream'}`}
+                                                    >
+                                                        {b.sectionName} <span className="text-farma-forest/50 text-xs ml-1">(#{b.batchNumber})</span>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-4 text-sm text-farma-forest/50 text-center italic">No matching flocks</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
+
+                {activeTabMode === 'ESTIMATOR' && (
+                    <div className="pt-2 animate-fade-in">
+                        <div className="mb-6">
+                            <h4 className="text-xl font-bold text-farma-forest">Profit Forecaster</h4>
+                            <p className="text-xs text-farma-forest/60 font-semibold mt-1">See how much profit you'll make when you sell your current flock at today's market prices.</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            <form onSubmit={handleRunValuation} className="lg:col-span-5 space-y-6 bg-white p-6 rounded-xl border border-farma-forest/10 shadow-sm h-fit">
+                                
+                                <div className="bg-farma-forest/5 rounded-xl p-4 border border-farma-forest/10 space-y-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">What do you want to calculate?</label>
+                                        <select
+                                            value={valForm.scope}
+                                            onChange={(e) => {
+                                                const newScope = e.target.value as 'BATCH' | 'FARM' | 'ORGANISATION';
+                                                setValForm({
+                                                    ...valForm,
+                                                    scope: newScope,
+                                                    scopeId: newScope === 'ORGANISATION' ? organisationId :
+                                                             newScope === 'FARM' ? Number(selectedFarmId || farms[0]?.id) :
+                                                             (batches.length > 0 ? batches[0].id : 0)
+                                                });
+                                            }}
+                                            className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow cursor-pointer"
+                                        >
+                                            <option value="ORGANISATION">My Entire Business (All Farms)</option>
+                                            <option value="FARM">A Specific Farm Location</option>
+                                            <option value="BATCH">A Specific Flock / Pen</option>
+                                        </select>
+                                    </div>
+
+                                    {valForm.scope !== 'ORGANISATION' && (
+                                        <div className={`grid grid-cols-1 gap-4 border-t border-farma-forest/10 pt-4 mt-2 ${valForm.scope === 'BATCH' ? 'sm:grid-cols-2' : ''}`}>
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Select Farm</label>
+                                                <select
+                                                    value={selectedFarmId}
+                                                    onChange={(e) => {
+                                                        const newFarmId = Number(e.target.value);
+                                                        setSelectedFarmId(newFarmId);
+                                                        if (valForm.scope === 'FARM') {
+                                                            setValForm(prev => ({...prev, scopeId: newFarmId}));
+                                                        } else {
+                                                            setValForm(prev => ({...prev, scopeId: 0})); 
+                                                        }
+                                                    }}
+                                                    disabled={!isProprietor && farms.length <= 1}
+                                                    className="w-full px-4 py-3 rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow cursor-pointer disabled:opacity-50"
+                                                >
+                                                    {farms.map((f) => (
+                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {valForm.scope === 'BATCH' && (
+                                                <div className="relative" ref={flockDropdownRef}>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">Select Flock</label>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setIsFlockDropdownOpen(!isFlockDropdownOpen)}
+                                                        className="w-full px-4 py-3 text-left rounded-lg bg-white border border-farma-forest/20 text-farma-forest text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-farma-gold/30 transition-shadow flex items-center justify-between"
+                                                    >
+                                                        <span className="truncate">{getEstimatorBatchDisplay()}</span>
+                                                        <IconChevronDown />
+                                                    </button>
+
+                                                    {isFlockDropdownOpen && (
+                                                        <div className="absolute top-[65px] left-0 w-full bg-white border border-farma-forest/20 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col max-h-[250px]">
+                                                            <div className="p-2 border-b border-farma-forest/10 bg-farma-cream sticky top-0">
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="Search flocks..."
+                                                                    value={flockSearchQuery}
+                                                                    onChange={(e) => setFlockSearchQuery(e.target.value)}
+                                                                    className="w-full px-3 py-2 text-sm bg-white border border-farma-forest/20 rounded-md focus:outline-none focus:ring-1 focus:ring-farma-green/50"
+                                                                />
+                                                            </div>
+                                                            <div className="overflow-y-auto flex-1">
+                                                                {filteredBatches.length > 0 ? (
+                                                                    filteredBatches.map(b => (
+                                                                        <div 
+                                                                            key={b.id}
+                                                                            onClick={() => { setValForm({ ...valForm, scopeId: b.id }); setIsFlockDropdownOpen(false); setFlockSearchQuery(''); }}
+                                                                            className={`px-4 py-3 text-sm cursor-pointer border-b border-farma-forest/5 ${valForm.scopeId === b.id ? 'bg-farma-forest/5 font-bold text-farma-forest' : 'text-farma-forest/80 hover:bg-farma-cream'}`}
+                                                                        >
+                                                                            {b.sectionName} <span className="text-farma-forest/50 text-xs ml-1">(#{b.batchNumber})</span>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <div className="px-4 py-4 text-sm text-farma-forest/50 text-center italic">No matching flocks</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="space-y-4 pt-2">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-gold mb-2">
+                                            Expected Meat Price (₦ / kg)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            value={valForm.projectedPricePerKg || ''}
+                                            onChange={(e) => setValForm({ ...valForm, projectedPricePerKg: Number(e.target.value) })}
+                                            className="w-full px-4 py-3 rounded-lg bg-farma-gold/5 border border-farma-gold/30 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-gold/50 transition-shadow tabular-nums"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-gold mb-2">
+                                            Expected Produce Price (₦ / unit)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            value={valForm.projectedPricePerProduceUnit || ''}
+                                            onChange={(e) => setValForm({ ...valForm, projectedPricePerProduceUnit: Number(e.target.value) })}
+                                            className="w-full px-4 py-3 rounded-lg bg-farma-gold/5 border border-farma-gold/30 text-farma-forest text-sm font-bold focus:outline-none focus:ring-2 focus:ring-farma-gold/50 transition-shadow tabular-nums"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <button
+                                    type="submit"
+                                    disabled={valLoading || !isValidValuation}
+                                    className="w-full py-4 rounded-lg bg-farma-forest hover:bg-farma-green-light text-white font-bold text-xs uppercase tracking-widest shadow-md transition-colors disabled:opacity-50 cursor-pointer mt-4 flex justify-center items-center gap-2"
+                                >
+                                    {valLoading ? (
+                                        <><div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> Calculating...</>
+                                    ) : !isValidValuation ? 'Please Select a Target' : 'Calculate Profit'}
+                                </button>
+                            </form>
+                            
+                            <div className="lg:col-span-7 bg-farma-sand-dark border border-farma-forest/10 rounded-xl overflow-hidden shadow-sm flex flex-col h-fit">
+                                <div className="p-5 border-b border-farma-forest/10 flex justify-between items-center bg-white/40">
+                                    <h5 className="font-bold text-farma-forest">Your Profit Forecast</h5>
+                                    {valResult && (
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-farma-forest/60 bg-white px-2 py-1 rounded shadow-sm max-w-[200px] truncate">
+                                            {valResult.scopeName}
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <div className="p-6 flex-1 flex flex-col justify-center">
+                                    {!valResult && !valLoading ? (
+                                        <div className="text-center text-farma-forest/40 py-8">
+                                            <IconCalculatorLarge />
+                                            <p className="mt-3 text-xs font-semibold uppercase tracking-widest leading-relaxed">
+                                                Select what you want to calculate and <br/> enter your selling prices to estimate your profit.
+                                            </p>
+                                        </div>
+                                    ) : valResult ? (
+                                        <div className="space-y-6">
+                                            
+                                            {/* WHAT YOU HAVE TO SELL */}
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="bg-white p-3 rounded-lg border border-farma-forest/10 text-center">
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-farma-forest/50 block mb-1">Live Birds to Sell</span>
+                                                    <span className="text-lg font-bold text-farma-forest tabular-nums">{valResult.liveBirds.toLocaleString()}</span>
+                                                </div>
+                                                <div className="bg-white p-3 rounded-lg border border-farma-forest/10 text-center">
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-farma-forest/50 block mb-1">Est. Total Weight</span>
+                                                    <span className="text-lg font-bold text-farma-forest tabular-nums">
+                                                        {valResult.totalWeightKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}<span className="text-xs text-farma-forest/40">kg</span>
+                                                    </span>
+                                                </div>
+                                                <div className="bg-white p-3 rounded-lg border border-farma-forest/10 text-center">
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-farma-forest/50 block mb-1">Stocked Produce</span>
+                                                    <span className="text-lg font-bold text-farma-forest tabular-nums">{valResult.produceUnits.toLocaleString()}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* THE MATH */}
+                                            <div className="bg-white rounded-xl border border-farma-forest/10 p-5 space-y-4 shadow-sm relative">
+                                                
+                                                <div className="flex justify-between items-center group">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-farma-green opacity-50"></div>
+                                                        <div>
+                                                            <span className="text-xs font-bold text-farma-forest/70 uppercase tracking-wider block">Money Already Made</span>
+                                                            <span className="text-[9px] font-semibold text-farma-forest/40 uppercase tracking-widest">From past egg or bird sales</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-farma-forest tabular-nums">₦{(valResult.realizedRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                </div>
+                                                
+                                                <div className="flex justify-between items-center group">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-farma-gold opacity-80"></div>
+                                                        <div>
+                                                            <span className="text-xs font-bold text-farma-forest/70 uppercase tracking-wider block">Expected Future Sales</span>
+                                                            <span className="text-[9px] font-semibold text-farma-forest/40 uppercase tracking-widest">Selling remaining birds & produce</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-farma-gold tabular-nums">+ ₦{(valResult.totalUnsoldAssetValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                </div>
+                                                
+                                                <div className="flex justify-between items-center pt-3 border-t-2 border-dashed border-farma-forest/10">
+                                                    <span className="text-xs font-bold text-farma-forest uppercase tracking-wider">Total Expected Revenue</span>
+                                                    <span className="text-lg font-bold text-farma-forest tabular-nums">₦{(valResult.totalProjectedRevenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                </div>
+
+                                                <div className="flex justify-between items-center pt-3 border-t border-farma-forest/10">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-2 h-2 rounded-full bg-farma-terracotta"></div>
+                                                        <div>
+                                                            <span className="text-xs font-bold text-farma-terracotta uppercase tracking-wider block">Money Spent (Costs)</span>
+                                                            <span className="text-[9px] font-semibold text-farma-terracotta/60 uppercase tracking-widest">All feed, meds, and expenses</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-farma-terracotta tabular-nums">- ₦{(valResult.actualSunkCosts || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* THE BOTTOM LINE */}
+                                            <div className={`p-5 rounded-xl border-2 shadow-sm ${isValProfitable ? 'bg-farma-green/10 border-farma-green/30' : 'bg-farma-terracotta/10 border-farma-terracotta/30'}`}>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isValProfitable ? 'text-farma-green' : 'text-farma-terracotta'}`}>
+                                                        Estimated Net {isValProfitable ? 'Profit' : 'Loss'}
+                                                    </span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isValProfitable ? 'bg-farma-green text-white' : 'bg-farma-terracotta text-white'}`}>
+                                                        {valResult.profitMargin.toFixed(1)}% Margin
+                                                    </span>
+                                                </div>
+                                                <span className={`text-4xl font-bold tabular-nums tracking-tighter ${isValProfitable ? 'text-farma-green' : 'text-farma-terracotta'}`}>
+                                                    {isValProfitable ? '' : '- '}₦{Math.abs(valResult.projectedNetProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {activeTabMode === 'ANALYTICS' && (
                     <div className="space-y-6 pt-2">
@@ -744,7 +1116,7 @@ export const FinancialWorkspaceView: React.FC<FinancialWorkspaceViewProps> = ({
                                     </div>
                                 </div>
 
-                                <div>
+                                <div className="relative">
                                     <label className="block text-[10px] font-bold uppercase tracking-widest text-farma-forest/70 mb-2">
                                         Select Flock (Optional)
                                     </label>
@@ -860,3 +1232,21 @@ const IconEmpty = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
 );
+
+const IconCalculator = () => (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+);
+
+const IconCalculatorLarge = () => (
+    <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+);
+
+const IconChevronDown = () => (
+    <svg className="w-4 h-4 text-farma-forest/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+    </svg>
+);  
