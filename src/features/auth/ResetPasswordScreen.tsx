@@ -1,188 +1,334 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Circle,
+  AlertCircle,
+  KeyRound,
+  ShieldAlert
+} from 'lucide-react';
 
 export function ResetPasswordScreen() {
-    const [searchParams] = useSearchParams();
-    const token = searchParams.get('token');
-    const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  const navigate = useNavigate();
 
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+  const passwordValidations = {
+    length: newPassword.length >= 8,
+    casing: /[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword),
+    number: /\d/.test(newPassword),
+    special: /[^A-Za-z0-9]/.test(newPassword)
+  };
+  const isPasswordStrong = Object.values(passwordValidations).every(Boolean);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
 
-        if (!token) {
-            setMessage({ type: 'error', text: 'Invalid or missing password reset link.' });
-            return;
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        if (newPassword !== confirmPassword) {
-            setMessage({ type: 'error', text: 'Passwords do not match.' });
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
-            return;
-        }
-
-        setLoading(true);
-        setMessage(null);
-
-        try {
-            const response = await fetch('https://api.farma.com.ng/api/v1/auth/reset-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, newPassword }),
-            });
-
-            if (response.ok) {
-                setMessage({ type: 'success', text: 'Password reset successfully! Redirecting to login...' });
-                setTimeout(() => {
-                    navigate('/auth/proprietor');
-                }, 2500);
-            } else {
-                setMessage({ type: 'error', text: 'Failed to reset password. The link may have expired.' });
-            }
-        } catch (err) {
-            console.error('Password reset error:', err);
-            setMessage({ type: 'error', text: 'An unexpected error occurred. Please try again later.' });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Shared input styling for perfect equilibrium with the AuthScreen
-    const inputClasses = "w-full px-4 py-3 rounded-xl bg-[#ECE6D6]/50 border border-[#101B14]/10 text-[#101B14] text-sm placeholder-[#8FA091] focus:bg-white focus:outline-none focus:border-[#D9A63E] focus:ring-4 focus:ring-[#D9A63E]/20 transition-all duration-300";
-
-    // If there's no token present in the URL query string, show the invalid link fallback
     if (!token) {
-        return (
-            <div className="min-h-screen bg-[#ECE6D6] relative flex flex-col justify-center py-8 px-4 font-sans overflow-hidden">
-                {/* Aesthetic Ambient Background Orbs */}
-                <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#3F6B47] rounded-full mix-blend-multiply filter blur-[128px] opacity-40 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-[#D9A63E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
-
-                <div className="relative sm:mx-auto sm:w-full sm:max-w-[28rem] z-10">
-                    <div className="bg-[#FBF9F5] py-8 sm:py-10 px-6 sm:px-12 shadow-2xl shadow-[#101B14]/10 border border-white/60 rounded-[2rem] backdrop-blur-sm text-center">
-                        
-                        {/* Branding Header */}
-                        <div className="text-center mb-8">
-                            <button onClick={() => navigate('/')} className="inline-flex items-center gap-3 mb-4 hover:opacity-80 transition-opacity cursor-pointer">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[#101B14] text-[#D9A63E] shadow-lg shadow-[#101B14]/20">
-                                    <span className="font-['Fraunces',serif] font-bold text-2xl">F</span>
-                                </div>
-                                <span className="font-['Fraunces',serif] font-extrabold text-3xl text-[#101B14] tracking-tight">Farma</span>
-                            </button>
-                            <h2 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight mt-2">Invalid Link</h2>
-                            <p className="text-[10px] font-bold tracking-widest text-[#3F6B47] uppercase mt-2">
-                                Account Recovery
-                            </p>
-                        </div>
-
-                        <p className="text-sm font-medium text-[#101B14]/60 mt-3 mb-8 leading-relaxed">
-                            This password reset link is invalid or has expired. Please go back to the login page and request a new one.
-                        </p>
-
-                        <button
-                            onClick={() => navigate('/auth/proprietor')}
-                            className="w-full mt-4 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#101B14] to-[#1c2e22] text-[#FBF9F5] font-extrabold text-xs uppercase tracking-wider shadow-lg hover:shadow-xl hover:-translate-y-0.5 focus:outline-none transform transition-all duration-300 cursor-pointer"
-                        >
-                            Return to Login →
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
+      setMessage({ type: 'error', text: 'Invalid or missing password reset link.' });
+      return;
     }
 
-    return (
-        <div className="min-h-screen bg-[#ECE6D6] relative flex flex-col justify-center py-8 px-4 font-sans overflow-hidden">
-            
-            {/* Aesthetic Ambient Background Orbs */}
-            <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-[#3F6B47] rounded-full mix-blend-multiply filter blur-[128px] opacity-40 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-[#D9A63E] rounded-full mix-blend-multiply filter blur-[128px] opacity-30 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
+    if (!isPasswordStrong) {
+      setMessage({ type: 'error', text: 'Please meet all password strength requirements.' });
+      return;
+    }
 
-            <div className="relative sm:mx-auto sm:w-full sm:max-w-[28rem] z-10">
-                <div className="bg-[#FBF9F5] py-8 sm:py-10 px-6 sm:px-12 shadow-2xl shadow-[#101B14]/10 border border-white/60 rounded-[2rem] backdrop-blur-sm">
-                    
-                    {/* Branding Header */}
-                    <div className="text-center mb-8">
-                        <button onClick={() => navigate('/')} className="inline-flex items-center gap-3 mb-4 hover:opacity-80 transition-opacity cursor-pointer">
-                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[#101B14] text-[#D9A63E] shadow-lg shadow-[#101B14]/20">
-                                <span className="font-['Fraunces',serif] font-bold text-2xl">F</span>
-                            </div>
-                            <span className="font-['Fraunces',serif] font-extrabold text-3xl text-[#101B14] tracking-tight">Farma</span>
-                        </button>
-                        
-                        <h2 className="text-2xl font-extrabold text-[#101B14] font-['Fraunces',serif] tracking-tight mt-2">Set New Password</h2>
-                        <p className="text-[10px] font-bold tracking-widest text-[#3F6B47] uppercase mt-2">
-                            Account Recovery
-                        </p>
-                    </div>
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
 
-                    <p className="text-xs font-medium text-[#101B14]/60 text-center mb-6">
-                        Enter a strong new password for your Farma account below.
-                    </p>
+    setLoading(true);
+    setMessage(null);
 
-                    {/* Feedback Alert */}
-                    {message && (
-                        <div className={`mb-6 p-4 rounded-xl text-xs flex items-start space-x-3 shadow-sm ${message.type === 'success' ? 'bg-[#3F6B47]/10 border border-[#3F6B47]/20 text-[#2A5C38]' : 'bg-red-50 border border-red-100 text-red-600'}`}>
-                            <span className="shrink-0 font-bold text-sm">{message.type === 'success' ? '✅' : '⚠️'}</span>
-                            <span className="font-medium leading-relaxed">{message.text}</span>
-                        </div>
-                    )}
+    try {
+      const response = await fetch('https://api.farma.com.ng/api/v1/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword })
+      });
 
-                    {/* Reset Form */}
-                    <form onSubmit={handleSubmit} className="space-y-5 text-left">
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">
-                                New Password
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className={inputClasses}
-                                placeholder="••••••••"
-                            />
-                        </div>
+      if (response.ok) {
+        setMessage({
+          type: 'success',
+          text: 'Password reset successfully! Redirecting to sign in...'
+        });
+        setTimeout(() => {
+          navigate('/auth/proprietor', { replace: true });
+        }, 2500);
+      } else {
+        setMessage({
+          type: 'error',
+          text: 'Failed to reset password. The reset link may have expired.'
+        });
+      }
+    } catch (err) {
+      console.error('Password reset error:', err);
+      setMessage({
+        type: 'error',
+        text: 'A network error occurred. Please check your connection and try again.'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-[#101B14]/60 mb-1.5 pl-1">
-                                Confirm New Password
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className={inputClasses}
-                                placeholder="••••••••"
-                            />
-                        </div>
+  const inputClasses =
+    'w-full px-4 py-3 rounded-xl bg-[#F7F8F5] border border-gray-200 text-[#18261B] text-sm placeholder-gray-400 focus:bg-white focus:outline-none focus:border-[#4C7A2B] focus:ring-4 focus:ring-[#84A93C]/20 transition-all duration-200';
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full mt-4 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#D9A63E] to-[#c49332] text-[#101B14] font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-[#D9A63E]/20 hover:shadow-[#D9A63E]/40 hover:-translate-y-0.5 focus:outline-none transform transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-                        >
-                            {loading ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-[#101B14]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    <span>Updating...</span>
-                                </>
-                            ) : (
-                                <span>Update Password →</span>
-                            )}
-                        </button>
-                    </form>
-                </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-[#F7F8F5] text-[#1A241B] font-sans antialiased flex flex-col justify-between relative overflow-hidden selection:bg-[#84A93C] selection:text-white">
+      {/* Top Forest Green Banner */}
+      <div className="absolute top-0 inset-x-0 h-72 bg-[#13311C] pointer-events-none" />
+
+      {/* Top Navigation Bar */}
+      <header className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 select-none">
+          <div className="w-9 h-9 rounded-full bg-[#84A93C] flex items-center justify-center shadow-md">
+            <span className="font-bold text-lg text-[#13311C] leading-none">F</span>
+          </div>
+          <div className="text-left leading-tight">
+            <span className="text-lg font-extrabold tracking-tight text-white block">Farma</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#A8C868] block">
+              Farm Management OS
+            </span>
+          </div>
         </div>
-    );
+
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-[#A8C868]" />
+          <span>Back to Home</span>
+        </button>
+      </header>
+
+      {/* Main Card */}
+      <main className="relative z-10 w-full max-w-md mx-auto px-4 sm:px-6 my-auto py-6">
+        <div className="bg-white py-8 sm:py-10 px-6 sm:px-10 shadow-xl shadow-black/10 border border-gray-100 rounded-3xl">
+          {!token ? (
+            /* Invalid / Missing Token State */
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-100">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-[11px] font-bold uppercase tracking-wider">
+                Link Expired or Invalid
+              </span>
+
+              <h1 className="text-2xl font-extrabold text-[#18261B] tracking-tight mt-3">
+                Invalid Reset Link
+              </h1>
+
+              <p className="text-xs text-[#5C6B5E] mt-2 leading-relaxed">
+                This password reset link is invalid or has already expired. Return to the sign-in
+                page to request a fresh recovery link.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => navigate('/auth/proprietor')}
+                className="w-full mt-7 py-3.5 px-4 rounded-xl bg-[#13311C] hover:bg-[#1B4327] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Return to Sign In</span>
+                <ArrowRight className="w-4 h-4 text-[#A8C868]" />
+              </button>
+            </div>
+          ) : (
+            /* Active Password Reset Form */
+            <div>
+              <div className="text-center mb-7">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF4E4] text-[#3A6324] text-[11px] font-bold uppercase tracking-wider">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  Account Recovery
+                </span>
+
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#18261B] tracking-tight mt-3">
+                  Set New Password
+                </h1>
+
+                <p className="text-xs text-[#5C6B5E] mt-1.5">
+                  Choose a strong new password to restore access to your Farma workspace.
+                </p>
+              </div>
+
+              {message && (
+                <div
+                  className={`mb-6 p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
+                    message.type === 'success'
+                      ? 'bg-[#EEF4E4] border border-[#84A93C]/40 text-[#13311C]'
+                      : 'bg-red-50 border border-red-200/80 text-red-700'
+                  }`}
+                >
+                  {message.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-[#3A6324] shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="font-medium leading-relaxed">{message.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#18261B] mb-1.5">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className={`${inputClasses} pr-11`}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-[#18261B] transition-colors cursor-pointer"
+                    >
+                      {showNewPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Checklist */}
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5 p-3 bg-[#F7F8F5] rounded-xl border border-gray-200/80">
+                    <div
+                      className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                        passwordValidations.length ? 'text-[#3A6324]' : 'text-gray-400'
+                      }`}
+                    >
+                      {passwordValidations.length ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <Circle className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>8+ characters</span>
+                    </div>
+                    <div
+                      className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                        passwordValidations.casing ? 'text-[#3A6324]' : 'text-gray-400'
+                      }`}
+                    >
+                      {passwordValidations.casing ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <Circle className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>Upper &amp; lowercase</span>
+                    </div>
+                    <div
+                      className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                        passwordValidations.number ? 'text-[#3A6324]' : 'text-gray-400'
+                      }`}
+                    >
+                      {passwordValidations.number ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <Circle className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>At least 1 number</span>
+                    </div>
+                    <div
+                      className={`text-[11px] font-semibold flex items-center gap-1.5 ${
+                        passwordValidations.special ? 'text-[#3A6324]' : 'text-gray-400'
+                      }`}
+                    >
+                      {passwordValidations.special ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <Circle className="w-3.5 h-3.5 shrink-0" />
+                      )}
+                      <span>Special character</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#18261B] mb-1.5">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`${inputClasses} pr-11`}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-[#18261B] transition-colors cursor-pointer"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {confirmPassword.length > 0 && !passwordsMatch && (
+                    <p className="text-[11px] font-semibold text-red-600 mt-1.5">
+                      Passwords do not match yet.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || !isPasswordStrong || !passwordsMatch}
+                  className="w-full mt-2 py-3.5 px-4 rounded-xl bg-[#84A93C] hover:bg-[#95BD42] text-[#13311C] font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <span>{loading ? 'Updating Password...' : 'Update Password'}</span>
+                  {!loading && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Minimal Footer */}
+      <footer className="relative z-10 py-5 text-center text-xs text-[#5C6B5E]">
+        <span>© {new Date().getFullYear()} Farma Technologies (farma.com.ng)</span>
+        <span className="mx-2">&bull;</span>
+        <a href="/privacy" className="hover:text-[#18261B] transition-colors">
+          Privacy Policy
+        </a>
+        <span className="mx-2">&bull;</span>
+        <a href="/terms" className="hover:text-[#18261B] transition-colors">
+          Terms of Service
+        </a>
+      </footer>
+    </div>
+  );
 }
+
+export default ResetPasswordScreen;

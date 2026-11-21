@@ -17,6 +17,12 @@ import type {
     AlertResolutionCategory,
 } from '../../types/analytics';
 
+// Extending the interface locally to accept the new backend field
+interface ExtendedDashboardDto extends BatchPerformanceDashboardDto {
+    recordedDays?: number;
+    currentTHI?: number;
+}
+
 interface AnalyticsCommandHubViewProps {
     organisationId: number;
     userRole?: string;
@@ -44,7 +50,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
     const [batches, setBatches] = useState<BatchResponseDto[]>([]);
     const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
 
-    const [dashboard, setDashboard] = useState<BatchPerformanceDashboardDto | null>(null);
+    const [dashboard, setDashboard] = useState<ExtendedDashboardDto | null>(null);
     const [activeAlerts, setActiveAlerts] = useState<SystemAlertResponse[]>([]);
 
     const [loading, setLoading] = useState<boolean>(true);
@@ -196,18 +202,36 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
         return { label: 'Poor (>1.80)', color: 'text-farma-terracotta bg-farma-terracotta/10 border-farma-terracotta/30' };
     };
 
+    // Use recordedDays if available from backend, otherwise fallback to chronological age
+    const activeDay = dashboard ? (dashboard.recordedDays || dashboard.currentAgeInDays || 1) : 1;
+
     const generateMockGrowthCurve = () => {
         if (!dashboard) return [];
         const curve = [];
-        const daysToShow = Math.min(dashboard.currentAgeInDays, 14);
-        for (let i = daysToShow - 1; i >= 0; i--) {
-            const day = dashboard.currentAgeInDays - i;
-            const factor = Math.pow(day / dashboard.currentAgeInDays, 1.3); 
-            curve.push({
-                day: `Day ${day}`,
-                actualWeight: Number((dashboard.currentAverageWeightGrams * factor).toFixed(0)),
-                targetWeight: Number((dashboard.currentAverageWeightGrams * (factor * 1.05)).toFixed(0)),
-            });
+        
+        // Dynamically scale the chart based on the production day
+        const daysToShow = Math.max(activeDay, 7); 
+        
+        for (let i = 0; i < daysToShow; i++) {
+            const day = i + 1;
+            
+            // Only plot actuals up to the current active day
+            if (day <= activeDay) {
+                const factor = Math.pow(day / activeDay, 1.3); 
+                curve.push({
+                    day: `Day ${day}`,
+                    actualWeight: Number((dashboard.currentAverageWeightGrams * factor).toFixed(0)),
+                    targetWeight: Number((dashboard.currentAverageWeightGrams * (factor * 1.05)).toFixed(0)),
+                });
+            } else {
+                // Future days just show the target projection
+                const futureFactor = Math.pow(day / activeDay, 1.3);
+                curve.push({
+                    day: `Day ${day}`,
+                    actualWeight: null,
+                    targetWeight: Number((dashboard.currentAverageWeightGrams * (futureFactor * 1.05)).toFixed(0)),
+                });
+            }
         }
         return curve;
     };
@@ -217,7 +241,7 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
         { name: 'Mortality', value: dashboard.totalMortality, color: THEME.terracotta }
     ] : [];
 
-    const currentTHI = 76; 
+    const currentTHI = dashboard?.currentTHI || 76; 
     const thiGaugeData = [
         { name: 'Current THI', value: currentTHI, color: currentTHI > 80 ? THEME.terracotta : THEME.gold },
         { name: 'Remaining', value: 100 - currentTHI, color: THEME.lightGray }
@@ -317,9 +341,10 @@ export const AnalyticsCommandHubView: React.FC<AnalyticsCommandHubViewProps> = (
                         </div>
 
                         <div className="bg-white border border-farma-forest/10 rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-                            <span className="text-xs font-semibold text-farma-forest/60 uppercase tracking-widest block mb-2">Flock Age</span>
+                            {/* UPDATED: Displays Production Day instead of just chronological age */}
+                            <span className="text-xs font-semibold text-farma-forest/60 uppercase tracking-widest block mb-2">Production Day</span>
                             <div className="text-4xl font-bold text-farma-gold tabular-nums tracking-tighter mb-4">
-                                Day {dashboard.currentAgeInDays || 0}
+                                Day {activeDay}
                             </div>
                             <div className="flex gap-2 pt-3 border-t border-farma-forest/5">
                                 <span className={`text-[10px] font-bold px-2.5 py-1.5 rounded-md border ${dashboard.activeAlertsCount > 0 ? 'text-farma-terracotta bg-farma-terracotta/10 border-farma-terracotta/30' : 'text-farma-forest/40 bg-farma-forest/5 border-farma-forest/10'}`}>

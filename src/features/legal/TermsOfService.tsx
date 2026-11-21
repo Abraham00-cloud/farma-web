@@ -1,105 +1,166 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Mail, FileText, AlertTriangle, ShieldCheck } from 'lucide-react';
 
-export const TermsOfService = () => {
-    const navigate = useNavigate();
+export const TermsOfService: React.FC = () => {
+  const navigate = useNavigate();
 
-    return (
-        <div className="min-h-screen bg-[#ECE6D6] font-['IBM_Plex_Sans',sans-serif] text-[#161F17] antialiased selection:bg-[#3F6B47] selection:text-white relative overflow-hidden">
-            
-            {/* Aesthetic Ambient Background Orbs */}
-            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#3F6B47] rounded-full mix-blend-multiply filter blur-[150px] opacity-20 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
-            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#D9A63E] rounded-full mix-blend-multiply filter blur-[150px] opacity-15 pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
+  return (
+    <div className="min-h-screen bg-[#F7F8F5] text-[#1A241B] font-sans antialiased flex flex-col justify-between relative overflow-hidden selection:bg-[#84A93C] selection:text-white">
+      {/* Top Forest Green Banner */}
+      <div className="absolute top-0 inset-x-0 h-72 bg-[#13311C] pointer-events-none" />
 
-            <div className="relative z-10 max-w-[800px] mx-auto py-12 px-6 sm:px-8 lg:py-20">
-                
-                {/* Branding & Back Button */}
-                <div className="flex items-center justify-between mb-12">
-                    <button 
-                        onClick={() => navigate('/')} 
-                        className="inline-flex items-center gap-2 text-[#101B14]/60 hover:text-[#101B14] font-bold text-sm transition-colors cursor-pointer"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Back to Home
-                    </button>
-
-                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#101B14] text-[#D9A63E] shadow-sm">
-                        <span className="font-['Fraunces',serif] font-bold text-xl leading-none mt-0.5">F</span>
-                    </div>
-                </div>
-
-                {/* Policy Document Container */}
-                <div className="bg-[#FBF9F5] p-8 sm:p-12 rounded-[2rem] border border-[#101B14]/10 shadow-xl shadow-[#101B14]/5">
-                    
-                    <div className="mb-10 border-b border-[#101B14]/10 pb-8">
-                        <h1 className="font-['Fraunces',serif] text-3xl sm:text-4xl font-extrabold mb-3 text-[#101B14] tracking-tight">Terms of Service</h1>
-                        <p className="text-[#3F6B47] font-['IBM_Plex_Mono',monospace] text-xs font-bold uppercase tracking-widest">
-                            Effective Date: August 2026
-                        </p>
-                    </div>
-
-                    <div className="space-y-10 text-[#101B14]/80 text-[0.95rem] leading-[1.8] font-medium">
-                        
-                        <section>
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">1. Agreeing to the Rules</h2>
-                            <p>By registering your farm organisation or logging into the Farma platform, you agree to be bound by these Terms of Service. If you do not agree to these rules, please do not use the Farma platform to manage your business.</p>
-                        </section>
-
-                        <section>
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">2. Account Security & Your Staff</h2>
-                            <p>As the Organisation Owner, you are responsible for keeping your master login details safe. You are also entirely responsible for the actions of any Facility Managers you invite and grant access to your workspace. Please notify us immediately if you suspect someone has gained unauthorized access to your account.</p>
-                        </section>
-
-                        <section className="bg-[#101B14]/5 p-6 rounded-2xl border border-[#101B14]/10">
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">3. Who Owns What</h2>
-                            <ul className="space-y-4">
-                                <li>
-                                    <strong className="text-[#101B14] block mb-1">Your Farm's Data:</strong> 
-                                    You retain 100% ownership of the daily logs, financial records, inventory counts, and all other business data you input into Farma.
-                                </li>
-                                <li>
-                                    <strong className="text-[#101B14] block mb-1">Our Platform:</strong> 
-                                    Farma retains all ownership of the software, the design, the automated calculation tools, and the underlying technology that makes the platform work.
-                                </li>
-                            </ul>
-                        </section>
-
-                        <section>
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-4 text-[#101B14]">4. Rules for Using Farma</h2>
-                            <p className="mb-3">To keep the platform safe and reliable for all farmers, you agree that you will not:</p>
-                            <ul className="list-disc pl-5 mt-2 space-y-2 marker:text-[#3F6B47]">
-                                <li>Try to hack, break, or bypass the security of the Farma platform.</li>
-                                <li>Attempt to access the records or data of another farm organisation.</li>
-                                <li>Use the software to manage unregistered businesses or support illegal agricultural practices.</li>
-                            </ul>
-                        </section>
-
-                        <section className="border-l-4 border-[#E76F51] pl-6 py-2">
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-2 text-[#101B14]">5. Our Liability (Please Read)</h2>
-                            <p>
-                                Farma is an information management tool built to help you track your business. <strong>We do not provide veterinary, financial, or legal advice.</strong> 
-                                <br/><br/>
-                                We provide data and alerts to help you make decisions, but we are not liable for livestock mortality, disease outbreaks, crop failures, or financial losses resulting from your use of the platform, or from decisions you make based on our calculations.
-                            </p>
-                        </section>
-
-                        <section className="border-t border-[#101B14]/10 pt-8">
-                            <h2 className="font-['Fraunces',serif] text-xl font-bold mb-3 text-[#101B14]">6. Contact Information</h2>
-                            <p className="mb-4">
-                                If you have any questions regarding these Terms of Service or your obligations while using the software, please reach out to our team at:
-                            </p>
-                            <a href="mailto:support@farma.com.ng" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#3F6B47]/10 text-[#2A5C38] font-bold text-sm hover:bg-[#3F6B47]/20 transition-colors">
-                                ✉ support@farma.com.ng
-                            </a>
-                        </section>
-                    </div>
-                </div>
-                
-                <div className="text-center mt-8 text-xs text-[#101B14]/40 font-['IBM_Plex_Mono',monospace] font-semibold uppercase tracking-widest">
-                    © {new Date().getFullYear()} Farma Technologies
-                </div>
-            </div>
+      {/* Top Navigation Bar */}
+      <header className="relative z-10 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5 select-none">
+          <div className="w-9 h-9 rounded-full bg-[#84A93C] flex items-center justify-center shadow-md">
+            <span className="font-bold text-lg text-[#13311C] leading-none">F</span>
+          </div>
+          <div className="text-left leading-tight">
+            <span className="text-lg font-extrabold tracking-tight text-white block">Farma</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#A8C868] block">
+              Farm Management OS
+            </span>
+          </div>
         </div>
-    );
+
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-2 text-xs font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 px-3.5 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-[#A8C868]" />
+          <span>Back to Home</span>
+        </button>
+      </header>
+
+      {/* Terms Document Container */}
+      <main className="relative z-10 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="bg-white p-7 sm:p-12 rounded-3xl border border-gray-100 shadow-xl shadow-black/10">
+          {/* Document Header */}
+          <div className="mb-10 border-b border-gray-100 pb-7">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF4E4] text-[#3A6324] text-[11px] font-bold uppercase tracking-wider">
+              <FileText className="w-3.5 h-3.5" />
+              Platform Usage Agreement
+            </span>
+            <h1 className="text-3xl sm:text-4xl font-extrabold mt-3 text-[#18261B] tracking-tight">
+              Terms of Service
+            </h1>
+            <p className="text-xs font-semibold text-[#5C6B5E] mt-2">
+              Effective Date: August 2026 &bull; Farma Technologies (farma.com.ng)
+            </p>
+          </div>
+
+          <div className="space-y-9 text-[#39483B] text-sm sm:text-[15px] leading-relaxed">
+            <section>
+              <h2 className="text-lg sm:text-xl font-extrabold mb-3 text-[#18261B]">
+                1. Acceptance of Terms
+              </h2>
+              <p>
+                By registering a farm organisation or signing into the Farma platform, you agree to
+                be bound by these Terms of Service. If you do not agree to these terms, you must not
+                access or use the platform.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg sm:text-xl font-extrabold mb-3 text-[#18261B]">
+                2. Account Security &amp; Staff Access
+              </h2>
+              <p>
+                As the Organisation Owner, you are responsible for safeguarding your master login
+                credentials and managing access permissions for any Facility Managers you provision
+                within your workspace. Notify us immediately if you suspect unauthorised access to
+                your account.
+              </p>
+            </section>
+
+            <section className="bg-[#F7F8F5] p-6 rounded-2xl border border-gray-200/80">
+              <div className="flex items-center gap-2.5 mb-3">
+                <ShieldCheck className="w-4 h-4 text-[#3A6324]" />
+                <h2 className="text-lg font-extrabold text-[#18261B]">
+                  3. Ownership of Data &amp; Software
+                </h2>
+              </div>
+              <ul className="space-y-3">
+                <li>
+                  <strong className="text-[#18261B] block">Your Farm&apos;s Data:</strong>
+                  You retain 100% ownership of all daily pen logs, inventory records, financial
+                  ledgers, and operational data submitted into Farma.
+                </li>
+                <li>
+                  <strong className="text-[#18261B] block">Our Platform:</strong>
+                  Farma Technologies retains full intellectual property rights to the software,
+                  interface design, analytics engines, and underlying infrastructure.
+                </li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-lg sm:text-xl font-extrabold mb-3 text-[#18261B]">
+                4. Acceptable Use
+              </h2>
+              <p>To keep the platform reliable and secure for all agricultural organisations, you agree not to:</p>
+              <ul className="list-disc pl-5 mt-3 space-y-2 marker:text-[#4C7A2B]">
+                <li>Attempt to probe, bypass, or compromise Farma&apos;s security controls.</li>
+                <li>Access or attempt to access records belonging to another organisation.</li>
+                <li>Use the software to support unlawful agricultural or commercial activities.</li>
+              </ul>
+            </section>
+
+            <section className="bg-amber-50/70 border border-amber-200/80 p-6 rounded-2xl">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-700" />
+                <h2 className="text-lg font-extrabold text-[#18261B]">
+                  5. Limitation of Liability
+                </h2>
+              </div>
+              <p className="text-[#39483B]">
+                Farma is a farm management information system designed to organise operational and
+                financial records.{' '}
+                <strong className="text-[#18261B]">
+                  We do not provide veterinary, agronomic, financial, or legal advice.
+                </strong>{' '}
+                While our calculations and alerts assist your decision-making, Farma Technologies is
+                not liable for livestock mortality, disease outbreaks, feed performance variances, or
+                financial losses arising from operational decisions made on your farm.
+              </p>
+            </section>
+
+            <section className="border-t border-gray-100 pt-7">
+              <h2 className="text-lg sm:text-xl font-extrabold mb-2.5 text-[#18261B]">
+                6. Contact Information
+              </h2>
+              <p className="mb-4">
+                If you have questions regarding these Terms of Service or your obligations when
+                using the platform, contact our team at:
+              </p>
+              <a
+                href="mailto:support@farma.com.ng"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#EEF4E4] hover:bg-[#E2EDD1] text-[#13311C] font-bold text-xs transition-colors"
+              >
+                <Mail className="w-4 h-4 text-[#3A6324]" />
+                <span>support@farma.com.ng</span>
+              </a>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      {/* Minimal Footer */}
+      <footer className="relative z-10 py-6 text-center text-xs text-[#5C6B5E]">
+        <span>© {new Date().getFullYear()} Farma Technologies (farma.com.ng)</span>
+        <span className="mx-2">&bull;</span>
+        <a href="/privacy" className="hover:text-[#18261B] transition-colors font-medium">
+          Privacy Policy
+        </a>
+        <span className="mx-2">&bull;</span>
+        <a href="/" className="hover:text-[#18261B] transition-colors font-medium">
+          Home
+        </a>
+      </footer>
+    </div>
+  );
 };
+
+export default TermsOfService;
